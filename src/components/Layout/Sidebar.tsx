@@ -120,7 +120,7 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
     // Check active products for active tenant
     api.get('/products').then((res) => {
       const products = res.data || [];
-      const activeProducts = products.filter((p: { status: string }) => p.status === 'active').map((p: { product: string }) => p.product);
+      const activeProducts = products.filter((p: { status: string }) => p.status === 'active' || p.status === 'grace').map((p: { product: string }) => p.product);
       setHasLogs(activeProducts.includes('Logs'));
       setHasHub(false);
     }).catch(() => {});

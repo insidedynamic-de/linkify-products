@@ -35,7 +35,7 @@ function LicenseGuard({ product, children }: { product: string; children: React.
   useEffect(() => {
     import('./api/client').then(({ default: api }) => {
       api.get('/products').then((res) => {
-        const has = (res.data || []).some((p: { product: string; status: string }) => p.product === product && p.status === 'active');
+        const has = (res.data || []).some((p: { product: string; status: string }) => p.product === product && (p.status === 'active' || p.status === 'grace'));
         setOk(has);
       }).catch(() => setOk(false));
     });
