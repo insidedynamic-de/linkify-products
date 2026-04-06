@@ -2,7 +2,7 @@
  * @file SaasDashboard — Product cards with license statuses (styled)
  * @author Viktor Nikolayev <viktor.nikolayev@gmail.com>
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -80,13 +80,23 @@ export default function SaasDashboard() {
   const [loading, setLoading] = useState(true);
   const user = getUserFromToken();
 
-  useEffect(() => {
+  const fetchProducts = useCallback(() => {
+    setLoading(true);
     api.get('/products').then((res) => {
       setProducts(res.data || []);
     }).catch(() => {
       setProducts([]);
     }).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
+  // Re-fetch on tenant switch
+  useEffect(() => {
+    const handler = () => fetchProducts();
+    window.addEventListener('tenant-switched', handler);
+    return () => window.removeEventListener('tenant-switched', handler);
+  }, [fetchProducts]);
 
   if (loading) {
     return (

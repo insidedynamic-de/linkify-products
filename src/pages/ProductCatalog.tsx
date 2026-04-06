@@ -2,7 +2,7 @@
  * @file ProductCatalog — Browse available products, activate trials
  * @author Viktor Nikolayev <viktor.nikolayev@gmail.com>
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Box, Card, CardContent, Typography, Button, Grid2 as Grid,
@@ -77,7 +77,8 @@ export default function ProductCatalog() {
   const [activating, setActivating] = useState('');
   const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
 
-  useEffect(() => {
+  const fetchCatalog = useCallback(() => {
+    setLoading(true);
     Promise.all([
       api.get('/catalog').catch(() => ({ data: [] })),
       api.get('/categories').catch(() => ({ data: [] })),
@@ -85,7 +86,6 @@ export default function ProductCatalog() {
     ]).then(([catRes, catsRes, myRes]) => {
       setProducts(catRes.data || []);
       setCategories((catsRes.data || []).filter((c: Category) => c.product_count > 0));
-      // Build set of owned product names
       const owned = new Set<string>();
       for (const p of (myRes.data || [])) {
         if (p.product) owned.add(p.product);
@@ -93,6 +93,14 @@ export default function ProductCatalog() {
       setOwnedProducts(owned);
     }).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { fetchCatalog(); }, [fetchCatalog]);
+
+  useEffect(() => {
+    const handler = () => fetchCatalog();
+    window.addEventListener('tenant-switched', handler);
+    return () => window.removeEventListener('tenant-switched', handler);
+  }, [fetchCatalog]);
 
   // Filter by active category
   const filtered = activeCategory
