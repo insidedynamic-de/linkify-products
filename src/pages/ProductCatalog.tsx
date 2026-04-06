@@ -9,6 +9,7 @@ import {
   CircularProgress, Alert, Chip, alpha, useTheme,
 } from '@mui/material';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import HubIcon from '@mui/icons-material/Hub';
 import StorefrontIcon from '@mui/icons-material/Storefront';
@@ -70,6 +71,7 @@ export default function ProductCatalog() {
   const theme = useTheme();
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [ownedProducts, setOwnedProducts] = useState<Set<string>>(new Set());
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activating, setActivating] = useState('');
@@ -79,9 +81,16 @@ export default function ProductCatalog() {
     Promise.all([
       api.get('/catalog').catch(() => ({ data: [] })),
       api.get('/categories').catch(() => ({ data: [] })),
-    ]).then(([catRes, catsRes]) => {
+      api.get('/products').catch(() => ({ data: [] })),
+    ]).then(([catRes, catsRes, myRes]) => {
       setProducts(catRes.data || []);
       setCategories((catsRes.data || []).filter((c: Category) => c.product_count > 0));
+      // Build set of owned product names
+      const owned = new Set<string>();
+      for (const p of (myRes.data || [])) {
+        if (p.product) owned.add(p.product);
+      }
+      setOwnedProducts(owned);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -158,6 +167,7 @@ export default function ProductCatalog() {
             const clientPlans = items.filter((p) => p.type === 'client');
             const hasTrial = trials.length > 0;
             const accent = getAccentColor(productName);
+            const isOwned = ownedProducts.has(productName);
             const allFeatures = [...new Set(items.flatMap((i) => i.feature_names || []))];
             const description = items.find((i) => i.description)?.description || '';
             const maxConn = Math.max(...clientPlans.map((p) => p.max_connections), 0);
@@ -170,7 +180,7 @@ export default function ProductCatalog() {
                     display: 'flex',
                     flexDirection: 'column',
                     borderTop: 4,
-                    borderColor: accent,
+                    borderColor: isOwned ? 'success.main' : accent,
                     transition: 'transform 0.15s, box-shadow 0.15s',
                     '&:hover': {
                       transform: 'translateY(-3px)',
@@ -193,9 +203,14 @@ export default function ProductCatalog() {
                         {getProductIcon(productName)}
                       </Box>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>
-                          {productName}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }} noWrap>
+                            {productName}
+                          </Typography>
+                          {isOwned && (
+                            <Chip icon={<CheckCircleIcon />} label={t('dashboard.status_active')} size="small" color="success" sx={{ fontWeight: 600 }} />
+                          )}
+                        </Box>
                         {clientPlans.length > 0 && (
                           <Typography variant="caption" color="text.secondary">
                             {clientPlans.length} {t('catalog.plans')}
@@ -268,7 +283,11 @@ export default function ProductCatalog() {
 
                     {/* Trial button */}
                     <Box sx={{ mt: 'auto', pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
-                      {hasTrial ? (
+                      {isOwned ? (
+                        <Button variant="outlined" fullWidth sx={{ textTransform: 'none', fontWeight: 500 }}>
+                          {t('catalog.upgrade') || 'Upgrade / Ändern'}
+                        </Button>
+                      ) : hasTrial ? (
                         <Button
                           variant="contained"
                           fullWidth
@@ -285,11 +304,7 @@ export default function ProductCatalog() {
                           {t('catalog.start_trial')} · 7 {t('dashboard.status_active') === 'Aktiv' ? 'Tage kostenlos' : 'days free'}
                         </Button>
                       ) : (
-                        <Button
-                          variant="outlined"
-                          fullWidth
-                          sx={{ textTransform: 'none', fontWeight: 500 }}
-                        >
+                        <Button variant="outlined" fullWidth sx={{ textTransform: 'none', fontWeight: 500 }}>
                           {t('catalog.contact_sales')}
                         </Button>
                       )}
