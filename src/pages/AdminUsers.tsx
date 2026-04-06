@@ -169,7 +169,7 @@ export default function AdminUsers() {
                   <Tooltip title="Edit">
                     <IconButton size="small" onClick={() => { setEditUser({ ...u } as Record<string, string | number | boolean | null>); setEditOpen(true); }}><EditIcon fontSize="small" /></IconButton>
                   </Tooltip>
-                  {u.is_active && (
+                  {u.is_active && u.id !== currentUser?.user_id && (
                     <Tooltip title="Deactivate">
                       <IconButton size="small" color="error" onClick={() => handleDeactivate(u.id)}><PersonOffIcon fontSize="small" /></IconButton>
                     </Tooltip>

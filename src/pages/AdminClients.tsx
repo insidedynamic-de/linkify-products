@@ -215,12 +215,14 @@ export default function AdminClients() {
                   }
                 </TableCell>
                 <TableCell>
-                  <Tooltip title="Switch">
-                    <IconButton size="small" color="success" onClick={() => {
-                      setActiveTenant({ id: t.id, name: t.name, tenant_type: t.tenant_type });
-                      window.location.reload();
-                    }}><SwapHorizIcon fontSize="small" /></IconButton>
-                  </Tooltip>
+                  {t.tenant_type !== 'company' && (
+                    <Tooltip title="Switch">
+                      <IconButton size="small" color="success" onClick={() => {
+                        setActiveTenant({ id: t.id, name: t.name, tenant_type: t.tenant_type });
+                        window.location.reload();
+                      }}><SwapHorizIcon fontSize="small" /></IconButton>
+                    </Tooltip>
+                  )}
                   <Tooltip title="Edit">
                     <IconButton size="small" onClick={() => openEdit(t.id)}><EditIcon fontSize="small" /></IconButton>
                   </Tooltip>
