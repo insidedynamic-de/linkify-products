@@ -244,7 +244,7 @@ export default function SaasDashboard() {
                         <Button size="small" variant="contained" color="warning"
                           onClick={() => navigate('/catalog')}
                           sx={{ textTransform: 'none', fontWeight: 600, flex: 1 }}>
-                          Lizenz erneuern
+                          Neue Lizenz kaufen
                         </Button>
                       ) : (
                         <>
