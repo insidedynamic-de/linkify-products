@@ -35,6 +35,13 @@ export default function MainLayout({ themeMode, setThemeMode }: Props) {
     setSetupChecked(true);
   }, []);
 
+  // Remount content on tenant switch
+  useEffect(() => {
+    const handler = () => setContentKey((k) => k + 1);
+    window.addEventListener('tenant-switched', handler);
+    return () => window.removeEventListener('tenant-switched', handler);
+  }, []);
+
   // Listen for license status from Sidebar
   useEffect(() => {
     const handler = (e: Event) => {
