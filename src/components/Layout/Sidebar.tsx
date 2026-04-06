@@ -53,7 +53,7 @@ const baseNavItems = [
   { key: '/licenses',      icon: <VpnKeyIcon />,       label: 'nav.licenses',     requiresHub: true },
   { key: '/monitoring',    icon: <MonitorHeartIcon />,  label: 'nav.monitoring',   requiresHub: true },
   { key: '/logs',          icon: <TerminalIcon />,     label: 'nav.logs',         requiresHub: true },
-  { key: '/logs',           icon: <TerminalIcon />,     label: 'nav.logs',         requiresHub: false },
+  { key: '/logs',           icon: <TerminalIcon />,     label: 'nav.logs',         requiresHub: false, requiresLogs: true },
   { key: '/profile',       icon: <SettingsIcon />,     label: 'nav.profile',      requiresHub: false },
 ];
 
@@ -110,12 +110,20 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
     if (reload) window.location.reload();
   };
 
-  // SaaS mode: show all nav items, no TalkHub license check needed
-  // TODO: fetch product licenses from SaaS backend when connected to LicServer
+  // Check which products the active tenant has licensed
+  const [hasLogs, setHasLogs] = useState(false);
+
   useEffect(() => {
     setHasLicense(true);
-    setHasHub(false); // TalkHub config only shown when product is connected
+    setHasHub(false);
     setActiveLicenseNames([]);
+    // Check products for active tenant
+    api.get('/products').then((res) => {
+      const products = res.data || [];
+      const productNames = products.map((p: { product: string }) => p.product);
+      setHasLogs(productNames.includes('Logs'));
+      setHasHub(productNames.some((n: string) => n.includes('TalkHub')));
+    }).catch(() => {});
   }, []);
 
   const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
@@ -287,6 +295,7 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
       <List sx={{ px: collapsed ? 0.5 : 1 }}>
         {baseNavItems.filter((item) => {
           if (item.requiresHub && !hasHub) return false;
+          if ((item as Record<string, unknown>).requiresLogs && !hasLogs) return false;
           if (!item.requiresHub && !hasLicense && item.key !== '/profile' && item.key !== '/integrations' && item.key !== '/licenses') return false;
           return true;
         }).map((item) => {
