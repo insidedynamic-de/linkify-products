@@ -149,7 +149,7 @@ export default function AdminUsers() {
                 <TableCell>{u.name}</TableCell>
                 <TableCell>
                   <Chip label={u.user_type} size="small"
-                    color={u.user_type === 'owner' ? 'error' : u.user_type === 'superadmin' ? 'warning' : u.user_type === 'admin' ? 'primary' : 'default'} />
+                    color={u.user_type === 'owner' ? 'error' : u.user_type === 'superadmin' ? 'warning' : u.user_type === 'admin' ? 'primary' : u.user_type === 'manager' ? 'info' : 'default'} />
                 </TableCell>
                 <TableCell>{getTenantName(u.tenant_id)}</TableCell>
                 <TableCell>{u.mfa_enabled ? <Chip label="MFA" size="small" color="success" /> : '—'}</TableCell>
@@ -186,8 +186,9 @@ export default function AdminUsers() {
           <FormControl size="small">
             <InputLabel>Role</InputLabel>
             <Select value={editUser.user_type || 'user'} label="Role" onChange={(e) => setEditUser({ ...editUser, user_type: e.target.value })}>
-              <MenuItem value="user">User (Client)</MenuItem>
-              <MenuItem value="admin">Admin</MenuItem>
+              <MenuItem value="user">User (Kunde)</MenuItem>
+              <MenuItem value="manager">Manager (Partner)</MenuItem>
+              <MenuItem value="admin">Admin (Provider)</MenuItem>
               {isOwner && <MenuItem value="superadmin">Superadmin</MenuItem>}
               {isOwner && <MenuItem value="owner">Owner</MenuItem>}
             </Select>
@@ -258,8 +259,9 @@ export default function AdminUsers() {
           <FormControl size="small">
             <InputLabel>Role</InputLabel>
             <Select value={newUser.user_type} label="Role" onChange={(e) => setNewUser({ ...newUser, user_type: e.target.value })}>
-              <MenuItem value="user">User (Client)</MenuItem>
-              <MenuItem value="admin">Admin</MenuItem>
+              <MenuItem value="user">User (Kunde)</MenuItem>
+              <MenuItem value="manager">Manager (Partner)</MenuItem>
+              <MenuItem value="admin">Admin (Provider)</MenuItem>
               {isOwner && <MenuItem value="superadmin">Superadmin</MenuItem>}
               {isOwner && <MenuItem value="owner">Owner</MenuItem>}
             </Select>

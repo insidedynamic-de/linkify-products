@@ -157,7 +157,7 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
         const u = getUserFromToken();
         if (!u) return null;
         const typeLabel: Record<string, string> = { provider: 'Provider', partner: 'Partner', company: 'Kunde' };
-        const roleLabel: Record<string, string> = { owner: 'Owner', superadmin: 'Superadmin', admin: 'Admin', user: 'User' };
+        const roleLabel: Record<string, string> = { owner: 'Owner', superadmin: 'Superadmin', admin: 'Admin', manager: 'Manager', user: 'User' };
         return (
           <Box sx={{ px: 2, py: 1.5 }}>
             <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600, lineHeight: 1.2 }} noWrap>
@@ -264,7 +264,7 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
       </List>
 
       {/* Superadmin section */}
-      {['admin', 'superadmin', 'owner'].includes(getUserFromToken()?.user_type || '') && (
+      {['manager', 'admin', 'superadmin', 'owner'].includes(getUserFromToken()?.user_type || '') && (
         <>
           <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mx: 1 }} />
           {!collapsed && (
@@ -274,10 +274,14 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
           )}
           <List sx={{ px: collapsed ? 0.5 : 1 }}>
             {[
-              { key: '/admin/clients',    icon: <BusinessIcon />, label: 'admin.clients' },
-              { key: '/admin/users',      icon: <PeopleIcon />,   label: 'admin.users' },
-              { key: '/admin/licservers', icon: <StorageIcon />,  label: 'admin.licservers' },
-            ].map((item) => (
+              { key: '/admin/clients',    icon: <BusinessIcon />, label: 'admin.clients', minRole: 'manager' },
+              { key: '/admin/users',      icon: <PeopleIcon />,   label: 'admin.users', minRole: 'manager' },
+              { key: '/admin/licservers', icon: <StorageIcon />,  label: 'admin.licservers', minRole: 'superadmin' },
+            ].filter((item) => {
+              const role = getUserFromToken()?.user_type || '';
+              const hierarchy = ['user', 'manager', 'admin', 'superadmin', 'owner'];
+              return hierarchy.indexOf(role) >= hierarchy.indexOf(item.minRole);
+            }).map((item) => (
               <Tooltip key={item.key} title={collapsed ? t(item.label) : ''} placement="right" arrow>
                 <ListItemButton
                   selected={location.pathname === item.key}
