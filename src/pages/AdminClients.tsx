@@ -87,7 +87,15 @@ export default function AdminClients() {
     setImporting(licClientId);
     try {
       const res = await api.post('/admin/licserver/import', { lic_server_id: selectedServer, lic_client_id: licClientId });
-      setToast({ open: true, message: `Imported: ${res.data.name} → tenant #${res.data.tenant_id}`, severity: 'success' });
+      const pwd = res.data.user_password;
+      const msg = pwd
+        ? `Imported: ${res.data.name}\nUser: ${res.data.user_email}\nPassword: ${pwd}`
+        : `Imported: ${res.data.name} → tenant #${res.data.tenant_id}`;
+      if (pwd) {
+        // Show credentials in alert so admin can copy
+        alert(`User created:\n\nEmail: ${res.data.user_email}\nPassword: ${pwd}\n\nPlease save this password — it won't be shown again.`);
+      }
+      setToast({ open: true, message: `Imported: ${res.data.name}`, severity: 'success' });
       setUnlinked((prev) => prev.filter((c) => c.id !== licClientId));
       fetchTenants();
     } catch (err: unknown) {
