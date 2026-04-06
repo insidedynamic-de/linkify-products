@@ -162,8 +162,7 @@ export default function AdminUsers() {
                       const tenant = tenants.find((t) => t.id === u.tenant_id);
                       if (tenant) {
                         setActiveTenant({ id: tenant.id, name: tenant.name, tenant_type: '' });
-                        window.dispatchEvent(new Event('tenant-switched'));
-                        window.location.hash = '#/';
+                        window.location.reload();
                       }
                     }}><SwapHorizIcon fontSize="small" /></IconButton>
                   </Tooltip>

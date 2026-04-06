@@ -98,16 +98,15 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
       if (!getActiveTenant() && tenants.length > 0) {
         const user = getUserFromToken();
         const own = tenants.find((t: ActiveTenant) => t.id === user?.tenant_id) || tenants[0];
-        handleTenantSwitch(own);
+        handleTenantSwitch(own, false);
       }
     }).catch(() => {});
   }, []);
 
-  const handleTenantSwitch = (tenant: ActiveTenant | null) => {
+  const handleTenantSwitch = (tenant: ActiveTenant | null, reload = true) => {
     setActiveTenant(tenant);
     setActiveTenantState(tenant);
-    // Trigger re-render of content pages
-    window.dispatchEvent(new Event('tenant-switched'));
+    if (reload) window.location.reload();
   };
 
   // SaaS mode: show all nav items, no TalkHub license check needed

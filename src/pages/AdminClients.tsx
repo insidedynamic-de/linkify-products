@@ -218,8 +218,7 @@ export default function AdminClients() {
                   <Tooltip title="Switch">
                     <IconButton size="small" color="success" onClick={() => {
                       setActiveTenant({ id: t.id, name: t.name, tenant_type: t.tenant_type });
-                      window.dispatchEvent(new Event('tenant-switched'));
-                      window.location.hash = '#/';
+                      window.location.reload();
                     }}><SwapHorizIcon fontSize="small" /></IconButton>
                   </Tooltip>
                   <Tooltip title="Edit">
