@@ -310,7 +310,7 @@ export default function ProductCatalog() {
                     <Box sx={{ mt: 'auto', pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
                       {isOwned ? (
                         <Button variant="outlined" fullWidth sx={{ textTransform: 'none', fontWeight: 500 }}>
-                          {t('catalog.upgrade') || 'Upgrade / Ändern'}
+                          {t('catalog.upgrade')}
                         </Button>
                       ) : !hasTrial && clientPlans.length > 0 && clientPlans[0].max_connections === 0 ? (
                         /* Instant-activate products (Logs, Support, etc.) */

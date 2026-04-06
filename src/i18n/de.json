@@ -141,7 +141,8 @@
     "start_trial": "Trial starten",
     "plans": "Verfügbare Tarife",
     "contact_sales": "Vertrieb kontaktieren",
-    "all": "Alle"
+    "all": "Alle",
+    "upgrade": "Upgrade / Ändern"
   },
   "config": {
     "default_gateway": "Standard-Gateway", "default_extension": "Standard-Nebenstelle",

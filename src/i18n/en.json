@@ -141,7 +141,8 @@
     "start_trial": "Start Trial",
     "plans": "Available Plans",
     "contact_sales": "Contact Sales",
-    "all": "All"
+    "all": "All",
+    "upgrade": "Upgrade / Change"
   },
   "config": {
     "default_gateway": "Default Gateway", "default_extension": "Default Extension",
