@@ -39,7 +39,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import StorageIcon from '@mui/icons-material/Storage';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import api from '../../api/client';
-import { clearTokens, getUserFromToken, getActiveTenant, setActiveTenant, type ActiveTenant } from '../../store/auth';
+import { clearTokens, getUserFromToken, getActiveTenant, setActiveTenant, getImpersonateUser, setImpersonateUser, getEffectiveUserType, type ActiveTenant } from '../../store/auth';
 import LogoutCountdown from '../LogoutCountdown';
 
 export const DRAWER_WIDTH = 240;
@@ -130,6 +130,7 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
     api.post('/auth/logout').catch(() => {});
     clearTokens();
     setActiveTenant(null);
+    setImpersonateUser(null);
     navigate('/login');
   };
 
@@ -205,8 +206,8 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
           </Box>
         );
       })()}
-      {/* Tenant switcher */}
-      {!collapsed && availableTenants.length > 1 && (
+      {/* Tenant switcher — hidden during impersonate */}
+      {!collapsed && availableTenants.length > 1 && !getImpersonateUser() && (
         <Box sx={{ px: 1.5, py: 1 }}>
           <Autocomplete
             size="small"
@@ -237,7 +238,7 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
           />
         </Box>
       )}
-      {collapsed && availableTenants.length > 1 && (
+      {collapsed && availableTenants.length > 1 && !getImpersonateUser() && (
         <Tooltip title={activeTenant?.name || 'Switch tenant'} placement="right">
           <IconButton sx={{ color: 'rgba(255,255,255,0.6)', mx: 'auto', display: 'block' }}
             onClick={() => { /* cycle to next tenant */
@@ -251,30 +252,37 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
       )}
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
       {/* Impersonate banner */}
-      {activeTenant && activeTenant.id !== getUserFromToken()?.tenant_id && (
-        <Box sx={{
-          mx: collapsed ? 0.5 : 1, my: 0.5, px: collapsed ? 0.5 : 1.5, py: 0.75,
-          bgcolor: 'warning.main', borderRadius: 1,
-          display: 'flex', alignItems: collapsed ? 'center' : 'row',
-          flexDirection: collapsed ? 'column' : 'row',
-          gap: 0.5,
-        }}>
-          {!collapsed && (
-            <Typography variant="caption" sx={{ color: 'warning.contrastText', fontWeight: 600, flex: 1, lineHeight: 1.2 }}>
-              {activeTenant.name}
-            </Typography>
-          )}
-          <Tooltip title="Zurück zu meinem Account" placement={collapsed ? 'right' : 'top'}>
-            <IconButton size="small" onClick={() => {
-              const user = getUserFromToken();
-              const own = availableTenants.find((t) => t.id === user?.tenant_id);
-              if (own) handleTenantSwitch(own);
-            }} sx={{ color: 'warning.contrastText', p: 0.25 }}>
-              <LogoutIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      )}
+      {getImpersonateUser() && (() => {
+        const imp = getImpersonateUser()!;
+        return (
+          <Box sx={{
+            mx: collapsed ? 0.5 : 1, my: 0.5, px: collapsed ? 0.5 : 1.5, py: 0.75,
+            bgcolor: 'warning.main', borderRadius: 1,
+            display: 'flex', alignItems: collapsed ? 'center' : 'row',
+            flexDirection: collapsed ? 'column' : 'row',
+            gap: 0.5,
+          }}>
+            {!collapsed && (
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="caption" sx={{ color: 'warning.contrastText', fontWeight: 600, lineHeight: 1.2, display: 'block' }}>
+                  {imp.name || imp.email}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'warning.contrastText', opacity: 0.8, fontSize: 10 }}>
+                  {imp.tenant_name} · {imp.user_type}
+                </Typography>
+              </Box>
+            )}
+            <Tooltip title="Zurück zu meinem Account" placement={collapsed ? 'right' : 'top'}>
+              <IconButton size="small" onClick={() => {
+                setImpersonateUser(null);
+                window.location.reload();
+              }} sx={{ color: 'warning.contrastText', p: 0.25 }}>
+                <LogoutIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        );
+      })()}
       <List sx={{ px: collapsed ? 0.5 : 1 }}>
         {baseNavItems.filter((item) => {
           if (item.requiresHub && !hasHub) return false;
@@ -360,8 +368,8 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
       </List>
 
       {/* Superadmin section */}
-      {['manager', 'admin', 'superadmin', 'owner'].includes(getUserFromToken()?.user_type || '') &&
-       (!activeTenant || activeTenant.id === getUserFromToken()?.tenant_id) && (
+      {['manager', 'admin', 'superadmin', 'owner'].includes(getEffectiveUserType()) &&
+       !getImpersonateUser() && (
         <>
           <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mx: 1 }} />
           {!collapsed && (

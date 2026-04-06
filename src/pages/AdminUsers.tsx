@@ -17,7 +17,7 @@ import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import KeyIcon from '@mui/icons-material/Key';
 import InputAdornment from '@mui/material/InputAdornment';
 import api from '../api/client';
-import { getUserFromToken, setActiveTenant } from '../store/auth';
+import { getUserFromToken, setImpersonateUser } from '../store/auth';
 import Toast from '../components/Toast';
 
 /** Generate NIS2-compliant password: 14 chars, upper+lower+digit+special */
@@ -157,15 +157,19 @@ export default function AdminUsers() {
                 <TableCell>{u.is_active ? <Chip label="Active" size="small" color="success" /> : <Chip label="Inactive" size="small" />}</TableCell>
                 <TableCell sx={{ fontSize: 12 }}>{u.last_login_at ? new Date(u.last_login_at).toLocaleString() : '—'}</TableCell>
                 <TableCell>
-                  <Tooltip title="Switch to tenant">
-                    <IconButton size="small" color="success" onClick={() => {
-                      const tenant = tenants.find((t) => t.id === u.tenant_id);
-                      if (tenant) {
-                        setActiveTenant({ id: tenant.id, name: tenant.name, tenant_type: '' });
+                  {u.id !== currentUser?.user_id && (
+                    <Tooltip title="Anmelden als">
+                      <IconButton size="small" color="success" onClick={() => {
+                        const tenant = tenants.find((t) => t.id === u.tenant_id);
+                        setImpersonateUser({
+                          user_id: u.id, email: u.email, name: u.name,
+                          tenant_id: u.tenant_id, tenant_name: tenant?.name || '',
+                          tenant_type: '', user_type: u.user_type,
+                        });
                         window.location.reload();
-                      }
-                    }}><SwapHorizIcon fontSize="small" /></IconButton>
-                  </Tooltip>
+                      }}><SwapHorizIcon fontSize="small" /></IconButton>
+                    </Tooltip>
+                  )}
                   <Tooltip title="Edit">
                     <IconButton size="small" onClick={() => { setEditUser({ ...u } as Record<string, string | number | boolean | null>); setEditOpen(true); }}><EditIcon fontSize="small" /></IconButton>
                   </Tooltip>

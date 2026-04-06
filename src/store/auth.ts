@@ -84,6 +84,44 @@ export interface ActiveTenant {
   tenant_type: string;
 }
 
+export interface ImpersonateUser {
+  user_id: number;
+  email: string;
+  name: string;
+  tenant_id: number;
+  tenant_name: string;
+  tenant_type: string;
+  user_type: string;
+}
+
+const IMPERSONATE_KEY = 'linkify_impersonate';
+
+export function getImpersonateUser(): ImpersonateUser | null {
+  try {
+    const raw = localStorage.getItem(IMPERSONATE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* */ }
+  return null;
+}
+
+export function setImpersonateUser(user: ImpersonateUser | null): void {
+  if (user) {
+    localStorage.setItem(IMPERSONATE_KEY, JSON.stringify(user));
+    // Also set active tenant for API calls
+    setActiveTenant({ id: user.tenant_id, name: user.tenant_name, tenant_type: user.tenant_type });
+  } else {
+    localStorage.removeItem(IMPERSONATE_KEY);
+    setActiveTenant(null);
+  }
+}
+
+/** Get effective user type — impersonated or real */
+export function getEffectiveUserType(): string {
+  const imp = getImpersonateUser();
+  if (imp) return imp.user_type;
+  return getUserFromToken()?.user_type || 'user';
+}
+
 export function getActiveTenant(): ActiveTenant | null {
   try {
     const raw = localStorage.getItem(ACTIVE_TENANT_KEY);
