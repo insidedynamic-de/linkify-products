@@ -2,7 +2,7 @@
  * @file SaasDashboard — Product cards with license statuses (styled)
  * @author Viktor Nikolayev <viktor.nikolayev@gmail.com>
  */
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -43,11 +43,11 @@ interface ProductLicense {
 
 interface Product {
   product: string;
-  status: 'pending' | 'active' | 'grace' | 'suspended';
+  status: string;
   licenses: ProductLicense[];
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { color: 'success' | 'default' | 'warning' | 'error'; icon: React.ReactElement; label: string }> = {
   active:    { color: 'success'  as const, icon: <CheckCircleIcon />,    label: 'dashboard.status_active' },
   pending:   { color: 'default'  as const, icon: <HourglassEmptyIcon />, label: 'dashboard.status_pending' },
   grace:     { color: 'warning'  as const, icon: <WarningAmberIcon />,   label: 'dashboard.status_grace' },
@@ -102,6 +102,10 @@ export default function SaasDashboard() {
     return () => window.removeEventListener('tenant-switched', handler);
   }, [fetchProducts]);
 
+  const [showAll, setShowAll] = useState(false);
+  const expiredCount = useMemo(() => products.filter((p) => p.status === 'suspended' || p.status === 'expired').length, [products]);
+  const visibleProducts = useMemo(() => showAll ? products : products.filter((p) => p.status !== 'suspended' && p.status !== 'expired'), [products, showAll]);
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -121,17 +125,20 @@ export default function SaasDashboard() {
             </Typography>
           )}
         </Box>
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<ShoppingCartIcon />}
-          onClick={() => navigate('/catalog')}
-        >
-          {t('nav.catalog')}
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {expiredCount > 0 && (
+            <Button variant="text" size="small" onClick={() => setShowAll(!showAll)}
+              sx={{ textTransform: 'none', fontSize: 12, color: 'text.secondary' }}>
+              {showAll ? 'Abgelaufene ausblenden' : `+ ${expiredCount} abgelaufen`}
+            </Button>
+          )}
+          <Button variant="outlined" size="small" startIcon={<ShoppingCartIcon />} onClick={() => navigate('/catalog')}>
+            {t('nav.catalog')}
+          </Button>
+        </Box>
       </Box>
 
-      {products.length === 0 ? (
+      {visibleProducts.length === 0 ? (
         <Card sx={{ textAlign: 'center' }}>
           <CardContent sx={{ py: 8 }}>
             <ShoppingCartIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
@@ -148,7 +155,7 @@ export default function SaasDashboard() {
         </Card>
       ) : (
         <Grid container spacing={3}>
-          {products.map((product) => {
+          {visibleProducts.map((product) => {
             const cfg = statusConfig[product.status] || statusConfig.pending;
             const activeLicense = product.licenses.find((l) => l.effective_status === 'active');
             const bestLicense = activeLicense || product.licenses[0];
