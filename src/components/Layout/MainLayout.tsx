@@ -29,19 +29,11 @@ export default function MainLayout({ themeMode, setThemeMode }: Props) {
   const [contentKey, setContentKey] = useState(0);
   const [licenseExpired, setLicenseExpired] = useState(false);
 
-  const checkSetup = useCallback(async () => {
-    try {
-      const res = await api.get('/company');
-      const companyId = res.data?.company_id || '';
-      setSetupRequired(!companyId);
-    } catch {
-      // If API fails, don't block — user can't do setup without backend anyway
-      setSetupRequired(false);
-    }
+  // SaaS mode: company data is set during registration, no TalkHub setup wizard needed
+  useEffect(() => {
+    setSetupRequired(false);
     setSetupChecked(true);
   }, []);
-
-  useEffect(() => { checkSetup(); }, [checkSetup]);
 
   // Listen for license status from Sidebar
   useEffect(() => {

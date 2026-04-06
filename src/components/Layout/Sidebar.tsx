@@ -31,19 +31,24 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { savePreferences } from '../../store/preferences';
 import type { ThemeMode } from '../../store/preferences';
 import { clearApiKey } from '../../store/keyStore';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import api from '../../api/client';
+import { clearTokens } from '../../store/auth';
 import LogoutCountdown from '../LogoutCountdown';
 
 export const DRAWER_WIDTH = 240;
 export const DRAWER_WIDTH_COLLAPSED = 64;
 
 const baseNavItems = [
-  { key: '/configuration', icon: <TuneIcon />,      label: 'nav.config',       requiresHub: true },
-  { key: '/integrations',  icon: <ExtensionIcon />, label: 'nav.integrations', requiresHub: false },
-  { key: '/licenses',      icon: <VpnKeyIcon />,    label: 'nav.licenses',     requiresHub: false },
-  { key: '/monitoring',    icon: <MonitorHeartIcon />, label: 'nav.monitoring', requiresHub: true },
-  { key: '/logs',          icon: <TerminalIcon />,  label: 'nav.logs',         requiresHub: true },
-  { key: '/profile',       icon: <SettingsIcon />,  label: 'nav.profile',      requiresHub: false },
+  { key: '/',              icon: <DashboardIcon />,    label: 'nav.dashboard',    requiresHub: false },
+  { key: '/catalog',       icon: <ShoppingCartIcon />, label: 'nav.catalog',      requiresHub: false },
+  { key: '/configuration', icon: <TuneIcon />,         label: 'nav.config',       requiresHub: true },
+  { key: '/integrations',  icon: <ExtensionIcon />,    label: 'nav.integrations', requiresHub: true },
+  { key: '/licenses',      icon: <VpnKeyIcon />,       label: 'nav.licenses',     requiresHub: true },
+  { key: '/monitoring',    icon: <MonitorHeartIcon />,  label: 'nav.monitoring',   requiresHub: true },
+  { key: '/logs',          icon: <TerminalIcon />,     label: 'nav.logs',         requiresHub: true },
+  { key: '/profile',       icon: <SettingsIcon />,     label: 'nav.profile',      requiresHub: false },
 ];
 
 interface Props {
@@ -75,43 +80,13 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
   const [activeLicenseNames, setActiveLicenseNames] = useState<string[]>([]);
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
 
-  const checkLicenses = useCallback(async () => {
-    try {
-      const res = await api.get('/license');
-      const features: string[] = res.data?.active_features || [];
-      const lics: { license_name: string; licensed: boolean; valid_until?: string }[] = res.data?.licenses || [];
-      const hasActive = features.length > 0;
-      setHasLicense(hasActive);
-      setHasHub(lics.some((l) => l.licensed && l.license_name === 'Basic'));
-      setActiveLicenseNames(lics.filter((l) => l.licensed).map((l) => l.license_name));
-
-      // Detect expired: licenses exist but none are active
-      const hasExpired = lics.length > 0 && !hasActive && lics.some((l) => {
-        if (!l.valid_until) return false;
-        return new Date(l.valid_until) < new Date();
-      });
-      // Dispatch license status for overlay
-      window.dispatchEvent(new CustomEvent('license-status', {
-        detail: { hasLicense: hasActive, hasExpired, licenseCount: lics.length },
-      }));
-    } catch {
-      setHasLicense(false);
-      setHasHub(false);
-      setActiveLicenseNames([]);
-      window.dispatchEvent(new CustomEvent('license-status', {
-        detail: { hasLicense: false, hasExpired: false, licenseCount: 0 },
-      }));
-    }
-  }, []);
-
-  useEffect(() => { checkLicenses(); }, [checkLicenses]);
-  // Re-check on navigation or when licenses change
-  useEffect(() => { checkLicenses(); }, [location.pathname, checkLicenses]);
+  // SaaS mode: show all nav items, no TalkHub license check needed
+  // TODO: fetch product licenses from SaaS backend when connected to LicServer
   useEffect(() => {
-    const handler = () => checkLicenses();
-    window.addEventListener('license-changed', handler);
-    return () => window.removeEventListener('license-changed', handler);
-  }, [checkLicenses]);
+    setHasLicense(true);
+    setHasHub(false); // TalkHub config only shown when product is connected
+    setActiveLicenseNames([]);
+  }, []);
 
   const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
 
@@ -123,9 +98,8 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
   };
 
   const handleLogout = () => {
-    // Clear session on server, then local cleanup
     api.post('/auth/logout').catch(() => {});
-    clearApiKey();
+    clearTokens();
     navigate('/login');
   };
 

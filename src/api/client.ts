@@ -1,60 +1,96 @@
 /**
- * @file client — Axios API client with interceptors for auth and host config
+ * @file client — Axios API client with JWT auth interceptors
  * @author Viktor Nikolayev <viktor.nikolayev@gmail.com>
  */
 import axios from 'axios';
-import demoAdapter from './demoAdapter';
-import { seedDemoData, resetDemoData } from './demoData';
-import { isDemoMode } from '../store/preferences';
-import { clearApiKey, shouldCleanupDemoData } from '../store/keyStore';
-
-// Restore saved host on startup
-const savedHost = localStorage.getItem('api_host');
-const baseURL = savedHost ? `${savedHost}/api/v1` : '/api/v1';
+import {
+  getAccessToken, getRefreshToken, setTokens, clearTokens,
+  isTokenExpired,
+} from '../store/auth';
 
 const api = axios.create({
-  baseURL,
+  baseURL: '/api/v1',
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Add API key to every request
+// ── Request interceptor: add Bearer token ──
 api.interceptors.request.use((config) => {
-  const key = localStorage.getItem('api_key');
-  if (key) config.headers['X-API-Key'] = key;
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 
-// Redirect to login on 401
+// ── Response interceptor: auto-refresh on 401, redirect on failure ──
+let refreshPromise: Promise<string> | null = null;
+
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      clearApiKey();
-      window.location.hash = '#/login';
+  async (err) => {
+    const original = err.config;
+
+    // Don't retry refresh/login/register requests
+    if (
+      !err.response ||
+      err.response.status !== 401 ||
+      original._retry ||
+      original.url?.includes('/auth/login') ||
+      original.url?.includes('/auth/register') ||
+      original.url?.includes('/auth/refresh')
+    ) {
+      return Promise.reject(err);
     }
-    return Promise.reject(err);
+
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      clearTokens();
+      window.location.hash = '#/login';
+      return Promise.reject(err);
+    }
+
+    // Deduplicate concurrent refresh calls
+    if (!refreshPromise) {
+      refreshPromise = axios
+        .post('/api/v1/auth/refresh', { refresh_token: refreshToken })
+        .then((res) => {
+          const newAccess = res.data.access_token;
+          const newRefresh = res.data.refresh_token;
+          setTokens(newAccess, newRefresh);
+          return newAccess;
+        })
+        .catch(() => {
+          clearTokens();
+          window.location.hash = '#/login';
+          return '';
+        })
+        .finally(() => {
+          refreshPromise = null;
+        });
+    }
+
+    const newToken = await refreshPromise;
+    if (!newToken) return Promise.reject(err);
+
+    original._retry = true;
+    original.headers.Authorization = `Bearer ${newToken}`;
+    return api(original);
   }
 );
 
-/** Enable or disable demo mode on the API client */
-export function setDemoAdapter(enabled: boolean): void {
-  if (enabled) {
-    // If 60+ minutes since last logout, reset demo data to defaults
-    if (shouldCleanupDemoData()) {
-      resetDemoData();
-      localStorage.removeItem('sip-wrapper-logout-at');
-    } else {
-      seedDemoData();
+/** Check if access token needs refresh before a critical operation */
+export async function ensureFreshToken(): Promise<void> {
+  const access = getAccessToken();
+  const refresh = getRefreshToken();
+  if (access && isTokenExpired(access) && refresh) {
+    try {
+      const res = await axios.post('/api/v1/auth/refresh', { refresh_token: refresh });
+      setTokens(res.data.access_token, res.data.refresh_token);
+    } catch {
+      clearTokens();
+      window.location.hash = '#/login';
     }
-    api.defaults.adapter = demoAdapter as never;
-  } else {
-    api.defaults.adapter = undefined as never;
   }
-}
-
-// Initialize on load: if preferences say demo mode, activate immediately
-if (isDemoMode()) {
-  setDemoAdapter(true);
 }
 
 export default api;
