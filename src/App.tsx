@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline, useMediaQuery } from '@mui/material';
 import { buildTheme } from './theme';
@@ -26,6 +26,22 @@ import NotFound from './pages/NotFound';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated()) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+/** Require active license for a product */
+function LicenseGuard({ product, children }: { product: string; children: React.ReactNode }) {
+  const [ok, setOk] = useState<boolean | null>(null);
+  useEffect(() => {
+    import('./api/client').then(({ default: api }) => {
+      api.get('/products').then((res) => {
+        const has = (res.data || []).some((p: { product: string }) => p.product === product);
+        setOk(has);
+      }).catch(() => setOk(false));
+    });
+  }, [product]);
+  if (ok === null) return null; // loading
+  if (!ok) return <Navigate to="/catalog" replace />;
   return <>{children}</>;
 }
 
@@ -71,7 +87,7 @@ export default function App() {
             <Route path="/" element={<SaasDashboard />} />
             <Route path="/catalog" element={<ProductCatalog />} />
 
-            <Route path="/logs" element={<SaasLogs />} />
+            <Route path="/logs" element={<LicenseGuard product="Logs"><SaasLogs /></LicenseGuard>} />
 
             {/* Admin routes — role protected */}
             <Route path="/admin/clients" element={<RoleGuard minRole="manager"><AdminClients /></RoleGuard>} />
