@@ -5,7 +5,7 @@ import { buildTheme } from './theme';
 import { loadPreferences } from './store/preferences';
 import type { ThemeMode } from './store/preferences';
 import type { ColorTheme } from './theme/colors';
-import { isAuthenticated } from './store/auth';
+import { isAuthenticated, getEffectiveUserType } from './store/auth';
 import MainLayout from './components/Layout/MainLayout';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -25,6 +25,16 @@ import NotFound from './pages/NotFound';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated()) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+/** Require minimum role to access route */
+function RoleGuard({ minRole, children }: { minRole: string; children: React.ReactNode }) {
+  const hierarchy = ['user', 'manager', 'admin', 'superadmin', 'owner'];
+  const effective = getEffectiveUserType();
+  if (hierarchy.indexOf(effective) < hierarchy.indexOf(minRole)) {
+    return <Navigate to="/" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -60,10 +70,10 @@ export default function App() {
             <Route path="/" element={<SaasDashboard />} />
             <Route path="/catalog" element={<ProductCatalog />} />
 
-            {/* Superadmin */}
-            <Route path="/admin/clients" element={<AdminClients />} />
-            <Route path="/admin/users" element={<AdminUsers />} />
-            <Route path="/admin/licservers" element={<AdminLicServers />} />
+            {/* Admin routes — role protected */}
+            <Route path="/admin/clients" element={<RoleGuard minRole="manager"><AdminClients /></RoleGuard>} />
+            <Route path="/admin/users" element={<RoleGuard minRole="manager"><AdminUsers /></RoleGuard>} />
+            <Route path="/admin/licservers" element={<RoleGuard minRole="superadmin"><AdminLicServers /></RoleGuard>} />
 
             {/* TalkHub product config (legacy pages, kept working) */}
             <Route path="/configuration" element={<Configuration />} />
