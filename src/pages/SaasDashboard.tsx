@@ -37,6 +37,8 @@ interface ProductLicense {
   effective_status: string;
   days_left: number | null;
   expiring_soon: boolean;
+  status_label: string;
+  status_color: string;
 }
 
 interface Product {
@@ -158,7 +160,7 @@ export default function SaasDashboard() {
             const expiringSoon = bestLicense?.expiring_soon ?? false;
 
             // Progress bar
-            const progressValue = daysLeft !== null ? Math.min(100, Math.max(0, (daysLeft / 30) * 100)) : 100;
+            const progressValue = daysLeft !== null && daysLeft >= 0 ? Math.min(100, Math.max(0, (daysLeft / 30) * 100)) : 0;
 
             return (
               <Grid size={{ xs: 12, sm: 6, md: 4 }} key={product.product}>
@@ -198,12 +200,13 @@ export default function SaasDashboard() {
                           </Typography>
                         )}
                       </Box>
-                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                        <Chip icon={cfg.icon} label={t(cfg.label)} color={cfg.color} size="small" sx={{ fontWeight: 600 }} />
-                        {expiringSoon && (
-                          <Chip label={daysLeft === 0 ? 'Letzter Tag' : `Noch ${daysLeft} Tage`} color="warning" size="small" sx={{ fontWeight: 600, fontSize: 11 }} />
-                        )}
-                      </Box>
+                      <Chip
+                        icon={cfg.icon}
+                        label={bestLicense?.status_label || t(cfg.label)}
+                        color={bestLicense?.status_color === 'warning' ? 'warning' : bestLicense?.status_color === 'error' ? 'error' : bestLicense?.status_color === 'success' ? 'success' : cfg.color}
+                        size="small"
+                        sx={{ fontWeight: 600, maxWidth: 200 }}
+                      />
                     </Box>
 
                     {/* License details */}
@@ -227,13 +230,8 @@ export default function SaasDashboard() {
                               color={isGrace ? 'warning' : expiringSoon ? 'error' : 'primary'}
                               sx={{ height: 6, borderRadius: 3, mb: 0.5 }}
                             />
-                            <Typography variant="caption" color={isGrace || expiringSoon ? 'warning.main' : 'text.secondary'}>
-                              {daysLeft === 0
-                                ? `Letzter Tag — ${new Date(bestLicense.expires_at!).toLocaleDateString()}`
-                                : daysLeft !== null && daysLeft > 0
-                                  ? `${daysLeft} ${daysLeft === 1 ? 'Tag' : 'Tage'} — ${new Date(bestLicense.expires_at!).toLocaleDateString()}`
-                                  : `Abgelaufen — ${new Date(bestLicense.expires_at!).toLocaleDateString()}`
-                              }
+                            <Typography variant="caption" color={bestLicense.status_color === 'success' ? 'text.secondary' : 'warning.main'}>
+                              {bestLicense.expires_at && new Date(bestLicense.expires_at).toLocaleDateString()}
                             </Typography>
                           </Box>
                         )}
