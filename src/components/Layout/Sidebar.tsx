@@ -122,7 +122,8 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
       const products = res.data || [];
       const productNames = products.map((p: { product: string }) => p.product);
       setHasLogs(productNames.includes('Logs'));
-      setHasHub(productNames.some((n: string) => n.includes('TalkHub')));
+      // TalkHub pages need a connected instance, not just license — disabled until instance management is built
+      setHasHub(false);
     }).catch(() => {});
   }, []);
 
