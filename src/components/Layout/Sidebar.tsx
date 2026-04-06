@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Drawer, List, ListItemButton, ListItemIcon, ListItemText,
   Toolbar, Typography, Divider, Box, IconButton, Tooltip, Collapse,
+  Autocomplete, TextField, Chip,
 } from '@mui/material';
 import { useEffect, useState, useCallback, useMemo, type ReactElement } from 'react';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -36,8 +37,9 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import BusinessIcon from '@mui/icons-material/Business';
 import PeopleIcon from '@mui/icons-material/People';
 import StorageIcon from '@mui/icons-material/Storage';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import api from '../../api/client';
-import { clearTokens, getUserFromToken } from '../../store/auth';
+import { clearTokens, getUserFromToken, getActiveTenant, setActiveTenant, type ActiveTenant } from '../../store/auth';
 import LogoutCountdown from '../LogoutCountdown';
 
 export const DRAWER_WIDTH = 240;
@@ -78,10 +80,35 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const [availableTenants, setAvailableTenants] = useState<ActiveTenant[]>([]);
+  const [activeTenant, setActiveTenantState] = useState<ActiveTenant | null>(getActiveTenant());
   const [hasLicense, setHasLicense] = useState(false);
   const [hasHub, setHasHub] = useState(false);
   const [activeLicenseNames, setActiveLicenseNames] = useState<string[]>([]);
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
+
+  // Load available tenants for switcher
+  useEffect(() => {
+    api.get('/tenants/available').then((res) => {
+      const tenants = (res.data || []).map((t: { id: number; name: string; tenant_type: string }) => ({
+        id: t.id, name: t.name, tenant_type: t.tenant_type,
+      }));
+      setAvailableTenants(tenants);
+      // If no active tenant set, default to own
+      if (!getActiveTenant() && tenants.length > 0) {
+        const user = getUserFromToken();
+        const own = tenants.find((t: ActiveTenant) => t.id === user?.tenant_id) || tenants[0];
+        handleTenantSwitch(own);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleTenantSwitch = (tenant: ActiveTenant | null) => {
+    setActiveTenant(tenant);
+    setActiveTenantState(tenant);
+    // Trigger re-render of content pages
+    window.dispatchEvent(new Event('tenant-switched'));
+  };
 
   // SaaS mode: show all nav items, no TalkHub license check needed
   // TODO: fetch product licenses from SaaS backend when connected to LicServer
@@ -178,6 +205,50 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
           </Box>
         );
       })()}
+      {/* Tenant switcher */}
+      {!collapsed && availableTenants.length > 1 && (
+        <Box sx={{ px: 1.5, py: 1 }}>
+          <Autocomplete
+            size="small"
+            options={availableTenants}
+            getOptionLabel={(o) => o.name}
+            value={activeTenant || undefined}
+            onChange={(_, v) => v && handleTenantSwitch(v)}
+            renderInput={(params) => (
+              <TextField {...params} placeholder="Tenant..."
+                sx={{
+                  '& .MuiInputBase-root': { color: '#fff', fontSize: 13, bgcolor: 'rgba(255,255,255,0.06)', borderRadius: 1 },
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.15)' },
+                  '& .MuiSvgIcon-root': { color: 'rgba(255,255,255,0.5)' },
+                }}
+              />
+            )}
+            renderOption={(props, option) => (
+              <li {...props} key={option.id}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                  <Typography variant="body2" sx={{ flex: 1 }}>{option.name}</Typography>
+                  <Chip label={option.tenant_type} size="small" sx={{ fontSize: 10, height: 18 }}
+                    color={option.tenant_type === 'provider' ? 'primary' : option.tenant_type === 'partner' ? 'warning' : 'default'} />
+                </Box>
+              </li>
+            )}
+            disableClearable
+            openOnFocus
+          />
+        </Box>
+      )}
+      {collapsed && availableTenants.length > 1 && (
+        <Tooltip title={activeTenant?.name || 'Switch tenant'} placement="right">
+          <IconButton sx={{ color: 'rgba(255,255,255,0.6)', mx: 'auto', display: 'block' }}
+            onClick={() => { /* cycle to next tenant */
+              const idx = availableTenants.findIndex((t) => t.id === activeTenant?.id);
+              const next = availableTenants[(idx + 1) % availableTenants.length];
+              handleTenantSwitch(next);
+            }}>
+            <SwapHorizIcon />
+          </IconButton>
+        </Tooltip>
+      )}
       <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
       <List sx={{ px: collapsed ? 0.5 : 1 }}>
         {baseNavItems.filter((item) => {

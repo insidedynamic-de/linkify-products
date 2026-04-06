@@ -15,7 +15,9 @@ import EditIcon from '@mui/icons-material/Edit';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import AddIcon from '@mui/icons-material/Add';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import api from '../api/client';
+import { setActiveTenant } from '../store/auth';
 import Toast from '../components/Toast';
 
 interface TenantRow {
@@ -213,6 +215,13 @@ export default function AdminClients() {
                   }
                 </TableCell>
                 <TableCell>
+                  <Tooltip title="Switch">
+                    <IconButton size="small" color="success" onClick={() => {
+                      setActiveTenant({ id: t.id, name: t.name, tenant_type: t.tenant_type });
+                      window.dispatchEvent(new Event('tenant-switched'));
+                      window.location.hash = '#/';
+                    }}><SwapHorizIcon fontSize="small" /></IconButton>
+                  </Tooltip>
                   <Tooltip title="Edit">
                     <IconButton size="small" onClick={() => openEdit(t.id)}><EditIcon fontSize="small" /></IconButton>
                   </Tooltip>

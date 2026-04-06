@@ -74,6 +74,36 @@ export function isAuthenticated(): boolean {
 
 // ── Quick user info from token (no API call) ──
 
+// ── Active tenant (impersonate / switch) ──
+
+const ACTIVE_TENANT_KEY = 'linkify_active_tenant';
+
+export interface ActiveTenant {
+  id: number;
+  name: string;
+  tenant_type: string;
+}
+
+export function getActiveTenant(): ActiveTenant | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_TENANT_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch { /* */ }
+  return null;
+}
+
+export function setActiveTenant(tenant: ActiveTenant | null): void {
+  if (tenant) {
+    localStorage.setItem(ACTIVE_TENANT_KEY, JSON.stringify(tenant));
+  } else {
+    localStorage.removeItem(ACTIVE_TENANT_KEY);
+  }
+}
+
+export function getActiveTenantId(): number | null {
+  return getActiveTenant()?.id || null;
+}
+
 export function getUserFromToken(): Pick<AuthUser, 'user_id' | 'email' | 'tenant_id' | 'tenant_type' | 'user_type'> | null {
   const token = getAccessToken();
   if (!token) return null;

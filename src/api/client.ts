@@ -5,7 +5,7 @@
 import axios from 'axios';
 import {
   getAccessToken, getRefreshToken, setTokens, clearTokens,
-  isTokenExpired,
+  isTokenExpired, getActiveTenantId,
 } from '../store/auth';
 
 const api = axios.create({
@@ -13,11 +13,15 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// ── Request interceptor: add Bearer token ──
+// ── Request interceptor: add Bearer token + active tenant ──
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  const tenantId = getActiveTenantId();
+  if (tenantId) {
+    config.headers['X-Tenant-Id'] = String(tenantId);
   }
   return config;
 });
