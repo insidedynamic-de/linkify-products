@@ -238,41 +238,36 @@ export default function SaasDashboard() {
                       </Box>
                     )}
 
-                    {/* Suspended / Grace warning */}
-                    {product.status === 'suspended' && (
-                      <Alert severity="error" sx={{ mb: 1, py: 0.5 }}>
-                        <Typography variant="caption">
-                          Lizenz abgelaufen und Karenzzeit überschritten. Produkt gesperrt.
-                          Bitte erneuern Sie Ihre Lizenz um fortzufahren.
-                        </Typography>
-                      </Alert>
-                    )}
-                    {product.status === 'grace' && (
-                      <Alert severity="warning" sx={{ mb: 1, py: 0.5 }}>
-                        <Typography variant="caption">
-                          Lizenz abgelaufen — Karenzzeit läuft ({daysLeft !== null ? `noch ${daysLeft} Tage` : ''}).
-                          Bitte erneuern Sie Ihre Lizenz.
-                        </Typography>
-                      </Alert>
-                    )}
-
                     {/* Actions */}
-                    <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
-                      <Tooltip title={t('dashboard.configure')}>
-                        <IconButton
-                          size="small"
-                          onClick={() => navigate(`/products/${product.product.toLowerCase().replace(/\s+/g, '-')}`)}
-                          sx={{ color: 'text.secondary' }}
-                        >
-                          <SettingsIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      {isActive && (
-                        <Tooltip title={t('dashboard.launch_instance')}>
-                          <IconButton size="small" color="success">
-                            <PlayArrowIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                    <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: 1, borderColor: 'divider', alignItems: 'center' }}>
+                      {(product.status === 'grace' || product.status === 'suspended') ? (
+                        <Button size="small" variant="contained" color="warning"
+                          onClick={() => navigate('/catalog')}
+                          sx={{ textTransform: 'none', fontWeight: 600, flex: 1 }}>
+                          Lizenz erneuern
+                        </Button>
+                      ) : (
+                        <>
+                          <Tooltip title={t('dashboard.configure')}>
+                            <IconButton size="small" onClick={() => navigate(`/products/${product.product.toLowerCase().replace(/\s+/g, '-')}`)} sx={{ color: 'text.secondary' }}>
+                              <SettingsIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          {isActive && (
+                            <Tooltip title={t('dashboard.launch_instance')}>
+                              <IconButton size="small" color="success">
+                                <PlayArrowIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {expiringSoon && (
+                            <Button size="small" variant="outlined" color="warning"
+                              onClick={() => navigate('/catalog')}
+                              sx={{ textTransform: 'none', fontSize: 11, ml: 'auto' }}>
+                              Verlängern
+                            </Button>
+                          )}
+                        </>
                       )}
                       <Box sx={{ flex: 1 }} />
                       {product.licenses.length > 1 && (
