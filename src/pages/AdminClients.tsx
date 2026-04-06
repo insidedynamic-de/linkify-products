@@ -22,6 +22,8 @@ interface TenantRow {
   id: number;
   name: string;
   tenant_type: string;
+  parent_id: number | null;
+  parent_name: string;
   email: string;
   phone: string;
   city: string;
@@ -184,7 +186,15 @@ export default function AdminClients() {
               <TableRow key={t.id}>
                 <TableCell>{t.id}</TableCell>
                 <TableCell><strong>{t.name}</strong></TableCell>
-                <TableCell><Chip label={t.tenant_type} size="small" color={t.tenant_type === 'provider' ? 'primary' : 'default'} /></TableCell>
+                <TableCell>
+                  <Chip label={t.tenant_type} size="small"
+                    color={t.tenant_type === 'provider' ? 'primary' : t.tenant_type === 'partner' ? 'warning' : 'default'} />
+                  {t.parent_name && (
+                    <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                      ← {t.parent_name}
+                    </Typography>
+                  )}
+                </TableCell>
                 <TableCell>{t.email}</TableCell>
                 <TableCell>{t.city} {t.country}</TableCell>
                 <TableCell>{t.user_count}</TableCell>
@@ -230,9 +240,18 @@ export default function AdminClients() {
           <FormControl size="small">
             <InputLabel>Type</InputLabel>
             <Select value={editTenant.tenant_type || 'company'} label="Type" onChange={(e) => setEditTenant({ ...editTenant, tenant_type: e.target.value })}>
-              <MenuItem value="company">Company</MenuItem>
+              <MenuItem value="company">Kunde</MenuItem>
               <MenuItem value="partner">Partner</MenuItem>
               <MenuItem value="provider">Provider</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl size="small">
+            <InputLabel>Partner (optional)</InputLabel>
+            <Select value={editTenant.parent_id || ''} label="Partner (optional)" onChange={(e) => setEditTenant({ ...editTenant, parent_id: e.target.value ? Number(e.target.value) : null })}>
+              <MenuItem value="">— Kein Partner —</MenuItem>
+              {tenants.filter((tt) => tt.tenant_type === 'partner').map((tt) => (
+                <MenuItem key={tt.id} value={tt.id}>{tt.name}</MenuItem>
+              ))}
             </Select>
           </FormControl>
           {editTenant.lic_client_id && (
