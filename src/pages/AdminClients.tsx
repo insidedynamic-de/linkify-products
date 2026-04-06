@@ -13,6 +13,8 @@ import {
 import LinkIcon from '@mui/icons-material/Link';
 import EditIcon from '@mui/icons-material/Edit';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import AddIcon from '@mui/icons-material/Add';
 import api from '../api/client';
 import Toast from '../components/Toast';
 
@@ -36,6 +38,9 @@ export default function AdminClients() {
   const [editOpen, setEditOpen] = useState(false);
   const [editTenant, setEditTenant] = useState<Record<string, string | number | null>>({});
   const [linking, setLinking] = useState<number | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [unlinked, setUnlinked] = useState<Record<string, unknown>[]>([]);
+  const [importing, setImporting] = useState<number | null>(null);
   const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
 
   const fetchTenants = useCallback(async () => {
@@ -47,6 +52,30 @@ export default function AdminClients() {
   }, []);
 
   useEffect(() => { fetchTenants(); }, [fetchTenants]);
+
+  const fetchUnlinked = async () => {
+    try {
+      const res = await api.get('/admin/licserver/unlinked');
+      setUnlinked(res.data || []);
+      setImportOpen(true);
+    } catch {
+      setToast({ open: true, message: 'Failed to load LicServer clients', severity: 'error' });
+    }
+  };
+
+  const handleImport = async (licClientId: number) => {
+    setImporting(licClientId);
+    try {
+      const res = await api.post('/admin/licserver/import', { lic_client_id: licClientId });
+      setToast({ open: true, message: `Imported: ${res.data.name} → tenant #${res.data.tenant_id}`, severity: 'success' });
+      setUnlinked((prev) => prev.filter((c) => c.id !== licClientId));
+      fetchTenants();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      setToast({ open: true, message: e?.response?.data?.detail || 'Error', severity: 'error' });
+    }
+    setImporting(null);
+  };
 
   const handleLink = async (tenantId: number) => {
     setLinking(tenantId);
@@ -87,7 +116,12 @@ export default function AdminClients() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5">{t('admin.clients')}</Typography>
-        <IconButton onClick={fetchTenants}><RefreshIcon /></IconButton>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button variant="outlined" size="small" startIcon={<CloudDownloadIcon />} onClick={fetchUnlinked}>
+            Import from LicServer
+          </Button>
+          <IconButton onClick={fetchTenants}><RefreshIcon /></IconButton>
+        </Box>
       </Box>
 
       <TableContainer component={Card}>
@@ -167,6 +201,52 @@ export default function AdminClients() {
         <DialogActions>
           <Button onClick={() => setEditOpen(false)}>{t('button.cancel')}</Button>
           <Button variant="contained" onClick={handleSave}>{t('button.save')}</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Import from LicServer Dialog */}
+      <Dialog open={importOpen} onClose={() => setImportOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Import from LicServer</DialogTitle>
+        <DialogContent>
+          {unlinked.length === 0 ? (
+            <Alert severity="info" sx={{ mt: 1 }}>All LicServer clients are already linked.</Alert>
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>ID</TableCell>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Licenses</TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {unlinked.map((c) => (
+                    <TableRow key={c.id as number}>
+                      <TableCell>{c.id as number}</TableCell>
+                      <TableCell><strong>{c.name as string}</strong></TableCell>
+                      <TableCell>{c.email as string}</TableCell>
+                      <TableCell>{c.license_count as number}</TableCell>
+                      <TableCell>
+                        <Button
+                          size="small" variant="contained" startIcon={importing === c.id ? <CircularProgress size={14} /> : <AddIcon />}
+                          disabled={importing !== null}
+                          onClick={() => handleImport(c.id as number)}
+                        >
+                          Import
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setImportOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
 
