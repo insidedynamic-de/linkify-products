@@ -129,6 +129,7 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
   const handleLogout = () => {
     api.post('/auth/logout').catch(() => {});
     clearTokens();
+    setActiveTenant(null);
     navigate('/login');
   };
 
@@ -359,7 +360,8 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
       </List>
 
       {/* Superadmin section */}
-      {['manager', 'admin', 'superadmin', 'owner'].includes(getUserFromToken()?.user_type || '') && (
+      {['manager', 'admin', 'superadmin', 'owner'].includes(getUserFromToken()?.user_type || '') &&
+       (!activeTenant || activeTenant.id === getUserFromToken()?.tenant_id) && (
         <>
           <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mx: 1 }} />
           {!collapsed && (
