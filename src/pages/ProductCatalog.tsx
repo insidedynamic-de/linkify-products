@@ -309,7 +309,11 @@ export default function ProductCatalog() {
                     {/* Trial button */}
                     <Box sx={{ mt: 'auto', pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
                       {isOwned ? (
-                        <Button variant="outlined" fullWidth sx={{ textTransform: 'none', fontWeight: 500 }}>
+                        <Button variant="contained" fullWidth
+                          startIcon={activating === productName ? <CircularProgress size={16} color="inherit" /> : <RocketLaunchIcon />}
+                          disabled={!!activating}
+                          onClick={() => handleActivateProduct(productName)}
+                          sx={{ bgcolor: accent, '&:hover': { bgcolor: alpha(accent, 0.85) }, textTransform: 'none', fontWeight: 600 }}>
                           {t('catalog.upgrade')}
                         </Button>
                       ) : !hasTrial && clientPlans.length > 0 && clientPlans[0].max_connections === 0 ? (
