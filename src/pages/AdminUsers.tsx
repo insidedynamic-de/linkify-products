@@ -14,6 +14,7 @@ import PersonOffIcon from '@mui/icons-material/PersonOff';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import api from '../api/client';
+import { getUserFromToken } from '../store/auth';
 import Toast from '../components/Toast';
 
 interface UserRow {
@@ -38,6 +39,8 @@ export default function AdminUsers() {
   const [editUser, setEditUser] = useState<Record<string, string | number | boolean | null>>({});
   const [newUser, setNewUser] = useState({ email: '', password: '', name: '', user_type: 'user', tenant_id: 0 });
   const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
+  const currentUser = getUserFromToken();
+  const isOwner = currentUser?.user_type === 'owner';
 
   const fetchData = useCallback(async () => {
     try {
@@ -123,7 +126,7 @@ export default function AdminUsers() {
                 <TableCell>{u.name}</TableCell>
                 <TableCell>
                   <Chip label={u.user_type} size="small"
-                    color={u.user_type === 'superadmin' ? 'error' : u.user_type === 'admin' ? 'primary' : 'default'} />
+                    color={u.user_type === 'owner' ? 'error' : u.user_type === 'superadmin' ? 'warning' : u.user_type === 'admin' ? 'primary' : 'default'} />
                 </TableCell>
                 <TableCell>{getTenantName(u.tenant_id)}</TableCell>
                 <TableCell>{u.mfa_enabled ? <Chip label="MFA" size="small" color="success" /> : '—'}</TableCell>
@@ -154,9 +157,10 @@ export default function AdminUsers() {
           <FormControl size="small">
             <InputLabel>Role</InputLabel>
             <Select value={editUser.user_type || 'user'} label="Role" onChange={(e) => setEditUser({ ...editUser, user_type: e.target.value })}>
-              <MenuItem value="user">User</MenuItem>
-              <MenuItem value="admin">Admin</MenuItem>
-              <MenuItem value="superadmin">Superadmin</MenuItem>
+              <MenuItem value="user">User (Client)</MenuItem>
+              <MenuItem value="manager">Manager</MenuItem>
+              {isOwner && <MenuItem value="superadmin">Superadmin</MenuItem>}
+              {isOwner && <MenuItem value="owner">Owner</MenuItem>}
             </Select>
           </FormControl>
           <TextField size="small" label="New Password (optional)" type="password" onChange={(e) => setEditUser({ ...editUser, password: e.target.value || null })} helperText="Leave empty to keep current" />
@@ -183,9 +187,10 @@ export default function AdminUsers() {
           <FormControl size="small">
             <InputLabel>Role</InputLabel>
             <Select value={newUser.user_type} label="Role" onChange={(e) => setNewUser({ ...newUser, user_type: e.target.value })}>
-              <MenuItem value="user">User</MenuItem>
-              <MenuItem value="admin">Admin</MenuItem>
-              <MenuItem value="superadmin">Superadmin</MenuItem>
+              <MenuItem value="user">User (Client)</MenuItem>
+              <MenuItem value="manager">Manager</MenuItem>
+              {isOwner && <MenuItem value="superadmin">Superadmin</MenuItem>}
+              {isOwner && <MenuItem value="owner">Owner</MenuItem>}
             </Select>
           </FormControl>
         </DialogContent>

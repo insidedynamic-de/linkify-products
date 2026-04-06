@@ -237,7 +237,7 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
       </List>
 
       {/* Superadmin section */}
-      {getUserFromToken()?.user_type === 'superadmin' && (
+      {['manager', 'superadmin', 'owner'].includes(getUserFromToken()?.user_type || '') && (
         <>
           <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mx: 1 }} />
           {!collapsed && (
