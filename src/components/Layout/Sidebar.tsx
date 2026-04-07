@@ -49,7 +49,7 @@ export const DRAWER_WIDTH_COLLAPSED = 64;
 const baseNavItems = [
   { key: '/',              icon: <DashboardIcon />,    label: 'nav.dashboard',    requiresHub: false },
   { key: '/produkte',      icon: <ShoppingCartIcon />, label: 'nav.catalog',      requiresHub: false },
-  { key: '/configuration', icon: <TuneIcon />,         label: 'nav.config',       requiresHub: true },
+  { key: '/configuration', icon: <TuneIcon />,         label: 'nav.config',       requiresHub: true, dynamic: true },
   { key: '/logs',          icon: <TerminalIcon />,     label: 'nav.logs',         requiresHub: false, requiresLogs: true },
   { key: '/profile',       icon: <SettingsIcon />,     label: 'nav.profile',      requiresHub: false },
 ];
@@ -98,16 +98,24 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
 
   // Load features from backend — single source of truth
   const [hasLogs, setHasLogs] = useState(false);
+  const [talkHubInstanceId, setTalkHubInstanceId] = useState<number | null>(null);
 
   useEffect(() => {
     setHasLicense(true);
     setHasHub(false);
     setActiveLicenseNames([]);
-    api.get('/features').then((res) => {
-      const sidebar = res.data?.sidebar || {};
+    Promise.all([
+      api.get('/features').catch(() => ({ data: {} })),
+      api.get('/my-instances').catch(() => ({ data: [] })),
+    ]).then(([featRes, instRes]) => {
+      const sidebar = featRes.data?.sidebar || {};
       setHasLogs(!!sidebar.logs);
       setHasHub(!!sidebar.talkhub);
-    }).catch(() => {});
+      // Find first online TalkHub instance
+      const thInst = (instRes.data || []).find((i: { product: string; status: string }) =>
+        i.product.includes('TalkHub') && i.status === 'online');
+      if (thInst) setTalkHubInstanceId(thInst.id);
+    });
   }, []);
 
   const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
@@ -276,11 +284,15 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
           if (item.requiresHub && !hasHub) return false;
           if ((item as Record<string, unknown>).requiresLogs && !hasLogs) return false;
           return true;
-        }).map((item) => (
+        }).map((item) => {
+          // Dynamic key for TalkHub → /products/talkhub/{instanceId}
+          const navKey = (item as Record<string, unknown>).dynamic && talkHubInstanceId
+            ? `/products/talkhub/${talkHubInstanceId}` : item.key;
+          return (
           <Tooltip key={item.key} title={collapsed ? t(item.label) : ''} placement="right" arrow>
             <ListItemButton
-              selected={location.pathname === item.key}
-              onClick={() => navigate(item.key)}
+              selected={location.pathname.startsWith(navKey)}
+              onClick={() => navigate(navKey)}
               sx={{
                 borderRadius: 1, mb: 0.5,
                 justifyContent: collapsed ? 'center' : 'flex-start',
@@ -295,7 +307,7 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
               {!collapsed && <ListItemText primary={t(item.label)} />}
             </ListItemButton>
           </Tooltip>
-        ))}
+          ); })}
       </List>
 
       {/* Superadmin section */}
