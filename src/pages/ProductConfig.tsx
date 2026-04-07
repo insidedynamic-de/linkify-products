@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography, Alert, Button, Chip } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import api from '../api/client';
+import api, { setInstancePrefix } from '../api/client';
+import Configuration from './Configuration';
 
 interface InstanceInfo {
   id: number;
@@ -27,11 +28,18 @@ export default function ProductConfig() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Clear prefix on unmount
+  useEffect(() => {
+    return () => { setInstancePrefix(''); };
+  }, []);
+
   useEffect(() => {
     if (!instanceId) return;
     api.get(`/instance/${instanceId}`).then((res) => {
       setInstance(res.data);
-      setProxyPrefix(`/instance/${instanceId}`);
+      const prefix = `/instance/${instanceId}`;
+      setProxyPrefix(prefix);
+      setInstancePrefix(prefix);
     }).catch((err) => {
       setError(err.response?.data?.detail || 'Instance not found');
     }).finally(() => setLoading(false));
@@ -71,7 +79,8 @@ export default function ProductConfig() {
         <Chip label={instance.status} size="small" color="success" />
       </Box>
 
-      {proxyPrefix && <ProductDashboard prefix={proxyPrefix} instance={instance} />}
+      {/* Configuration page — all api calls automatically prefixed via setInstancePrefix */}
+      {proxyPrefix && <Configuration />}
     </Box>
   );
 }

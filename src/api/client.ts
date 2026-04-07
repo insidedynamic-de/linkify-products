@@ -104,4 +104,37 @@ export async function ensureFreshToken(): Promise<void> {
   }
 }
 
+/** Set instance proxy prefix — all requests will be prefixed */
+let _instancePrefix = '';
+export function setInstancePrefix(prefix: string) { _instancePrefix = prefix; }
+export function getInstancePrefix() { return _instancePrefix; }
+
+// Override baseURL dynamically based on instance prefix
+const originalGet = api.get.bind(api);
+const originalPost = api.post.bind(api);
+const originalPut = api.put.bind(api);
+const originalDelete = api.delete.bind(api);
+const originalPatch = api.patch.bind(api);
+
+function prefixUrl(url: string): string {
+  if (!_instancePrefix || url.startsWith('/auth') || url.startsWith('/admin') ||
+      url.startsWith('/instance') || url.startsWith('/tenants') || url.startsWith('/features') ||
+      url.startsWith('/my-instances') || url.startsWith('/products') || url.startsWith('/catalog') ||
+      url.startsWith('/categories') || url.startsWith('/logs')) {
+    return url;
+  }
+  return `${_instancePrefix}${url}`;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+api.get = ((url: string, ...args: any[]) => originalGet(prefixUrl(url), ...args)) as typeof api.get;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+api.post = ((url: string, ...args: any[]) => originalPost(prefixUrl(url), ...args)) as typeof api.post;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+api.put = ((url: string, ...args: any[]) => originalPut(prefixUrl(url), ...args)) as typeof api.put;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+api.delete = ((url: string, ...args: any[]) => originalDelete(prefixUrl(url), ...args)) as typeof api.delete;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+api.patch = ((url: string, ...args: any[]) => originalPatch(prefixUrl(url), ...args)) as typeof api.patch;
+
 export default api;
