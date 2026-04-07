@@ -37,6 +37,7 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import BusinessIcon from '@mui/icons-material/Business';
 import PeopleIcon from '@mui/icons-material/People';
 import StorageIcon from '@mui/icons-material/Storage';
+import DnsIcon from '@mui/icons-material/Dns';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import api from '../../api/client';
 import { clearTokens, getUserFromToken, getActiveTenant, setActiveTenant, getImpersonateUser, setImpersonateUser, getEffectiveUserType, type ActiveTenant } from '../../store/auth';
@@ -390,6 +391,7 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
               { key: '/admin/clients',    icon: <BusinessIcon />, label: 'admin.clients', minRole: 'manager' },
               { key: '/admin/users',      icon: <PeopleIcon />,   label: 'admin.users', minRole: 'manager' },
               { key: '/admin/licservers', icon: <StorageIcon />,  label: 'admin.licservers', minRole: 'superadmin' },
+              { key: '/admin/infra',      icon: <DnsIcon />,      label: 'admin.infra', minRole: 'superadmin' },
             ].filter((item) => {
               const role = getUserFromToken()?.user_type || '';
               const hierarchy = ['user', 'manager', 'admin', 'superadmin', 'owner'];

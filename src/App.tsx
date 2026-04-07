@@ -14,6 +14,7 @@ import ProductCatalog from './pages/ProductCatalog';
 import AdminClients from './pages/AdminClients';
 import AdminUsers from './pages/AdminUsers';
 import AdminLicServers from './pages/AdminLicServers';
+import AdminInfra from './pages/AdminInfra';
 import SaasLogs from './pages/SaasLogs';
 import Configuration from './pages/Configuration';
 import Logs from './pages/Logs';
@@ -93,6 +94,7 @@ export default function App() {
             <Route path="/admin/clients" element={<RoleGuard minRole="manager"><AdminClients /></RoleGuard>} />
             <Route path="/admin/users" element={<RoleGuard minRole="manager"><AdminUsers /></RoleGuard>} />
             <Route path="/admin/licservers" element={<RoleGuard minRole="superadmin"><AdminLicServers /></RoleGuard>} />
+            <Route path="/admin/infra" element={<RoleGuard minRole="superadmin"><AdminInfra /></RoleGuard>} />
 
             {/* TalkHub product config (legacy pages, kept working) */}
             <Route path="/configuration" element={<Configuration />} />

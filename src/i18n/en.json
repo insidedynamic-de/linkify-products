@@ -132,7 +132,8 @@
   "admin": {
     "clients": "Clients",
     "users": "Users",
-    "licservers": "LicServers"
+    "licservers": "LicServers",
+    "infra": "Infrastructure"
   },
   "catalog": {
     "title": "Product Catalog",
