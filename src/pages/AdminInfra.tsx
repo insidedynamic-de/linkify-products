@@ -232,6 +232,13 @@ export default function AdminInfra() {
                       </Box>
                       {n.tenant_name && <Chip label={`Dedicated: ${n.tenant_name}`} size="small" color="info" sx={{ mb: 1 }} />}
                       <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
+                        <Button size="small" onClick={async () => {
+                          try {
+                            const res = await api.post(`/admin/infra/nodes/${n.id}/check`);
+                            setToast({ open: true, message: `${n.name}: ${res.data.status}`, severity: res.data.success ? 'success' : 'error' });
+                            fetchAll();
+                          } catch { setToast({ open: true, message: 'Check failed', severity: 'error' }); }
+                        }}>Status</Button>
                         <IconButton size="small" onClick={() => { setEditNode({ ...n } as Record<string, unknown>); setNodeDialog(true); }}><EditIcon fontSize="small" /></IconButton>
                         <IconButton size="small" color="error" onClick={() => deleteNode(n.id)}><DeleteIcon fontSize="small" /></IconButton>
                       </Box>
