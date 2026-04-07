@@ -78,6 +78,17 @@ export default function Users() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Auto-refresh registrations every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const r = await api.get('/registrations');
+        setRegistrations(r.data || []);
+      } catch { /* */ }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Build unified list: merge SIP users + ACL users with their extensions
   const extMap = new Map(extensions.map((e) => [e.extension, e]));
 
