@@ -84,9 +84,10 @@ export default function AdminInfra() {
   // Dialogs
   const [nodeDialog, setNodeDialog] = useState(false);
   const [instanceDialog, setInstanceDialog] = useState(false);
-  const [editNode, setEditNode] = useState<Record<string, unknown>>({});
-  const [editInstance, setEditInstance] = useState<Record<string, unknown>>({});
-  const [editTemplate, setEditTemplate] = useState<Record<string, unknown>>({});
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const [editNode, setEditNode] = useState<any>({});
+  const [editInstance, setEditInstance] = useState<any>({});
+  const [editTemplate, setEditTemplate] = useState<any>({});
   const [templateDialog, setTemplateDialog] = useState(false);
   const [catalogProducts, setCatalogProducts] = useState<string[]>([]);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
@@ -753,27 +754,71 @@ export default function AdminInfra() {
 
       {/* ── Instance Dialog ── */}
       <Dialog open={instanceDialog} onClose={() => setInstanceDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editInstance.id ? 'Instanz bearbeiten' : 'Instanz erstellen'}</DialogTitle>
+        <DialogTitle>{editInstance.id ? 'Instanz bearbeiten' : 'Neue Instanz'}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
-          <TextField size="small" label="Product" value={editInstance.product || ''} onChange={(e) => setEditInstance({ ...editInstance, product: e.target.value })} />
-          <TextField size="small" label="Name" value={editInstance.name || ''} onChange={(e) => setEditInstance({ ...editInstance, name: e.target.value })} />
+          {/* Product from templates */}
+          <FormControl size="small">
+            <InputLabel>Produkt</InputLabel>
+            <Select value={editInstance.product || ''} label="Produkt" onChange={(e) => {
+              const prod = String(e.target.value);
+              const tmpl = templates.find((t) => t.product === prod);
+              setEditInstance({ ...editInstance, product: prod, docker_image: tmpl?.docker_image || '', _domain_prefix: tmpl?.domain_prefix || '' });
+            }}>
+              {templates.filter((t) => t.docker_image).map((t) => (
+                <MenuItem key={t.product} value={t.product}>{t.product}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Node — nur online mit Coolify */}
           <FormControl size="small">
             <InputLabel>Node</InputLabel>
             <Select value={editInstance.node_id || ''} label="Node" onChange={(e) => setEditInstance({ ...editInstance, node_id: Number(e.target.value) })}>
-              {nodes.map((n) => <MenuItem key={n.id} value={n.id}>{n.name} ({n.provider})</MenuItem>)}
+              {nodes.filter((n) => n.status === 'online' && n.coolify_server_id).map((n) => (
+                <MenuItem key={n.id} value={n.id}>{n.name} ({n.provider}) — {n.instance_count}/{n.max_containers}</MenuItem>
+              ))}
             </Select>
           </FormControl>
-          <TextField size="small" label="Domain" value={editInstance.domain || ''} onChange={(e) => setEditInstance({ ...editInstance, domain: e.target.value })} placeholder="krause.talkhub.flxo.cloud" />
-          <TextField size="small" label="Docker Image" value={editInstance.docker_image || ''} onChange={(e) => setEditInstance({ ...editInstance, docker_image: e.target.value })} />
+
+          {/* Domain: subdomain input + root preview */}
+          <Box sx={{ display: 'flex', gap: 0, alignItems: 'center' }}>
+            <TextField size="small" label="Subdomain" value={editInstance.name || ''}
+              onChange={(e) => setEditInstance({ ...editInstance, name: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+              sx={{ flex: 1 }}
+              slotProps={{ input: { endAdornment: (
+                <InputAdornment position="end">
+                  <Button size="small" sx={{ minWidth: 0, fontSize: 11, px: 1 }} onClick={() => {
+                    const c = 'abcdefghjkmnpqrstuvwxyz23456789';
+                    setEditInstance({ ...editInstance, name: Array.from({length: 5}, () => c[Math.floor(Math.random() * c.length)]).join('') });
+                  }}>Gen</Button>
+                </InputAdornment>
+              )}}} />
+            <Typography sx={{ px: 1, color: 'text.secondary', fontSize: 12, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+              .{editInstance._domain_prefix || 'product'}.{settings.find((s: SettingRow) => s.category === 'cloudflare' && s.key === 'root_domain')?.value_full || 'flxo.cloud'}
+            </Typography>
+          </Box>
+
+          {/* Full domain preview */}
+          {editInstance.name && (
+            <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'primary.main', bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 1 }}>
+              {editInstance.name}.{editInstance._domain_prefix || 'product'}.{settings.find((s: SettingRow) => s.category === 'cloudflare' && s.key === 'root_domain')?.value_full || 'flxo.cloud'}
+            </Typography>
+          )}
+
           <Box sx={{ display: 'flex', gap: 2 }}>
             <TextField size="small" label="Max Connections" type="number" value={editInstance.max_connections || 0} onChange={(e) => setEditInstance({ ...editInstance, max_connections: Number(e.target.value) })} />
             <FormControl size="small" fullWidth>
-              <InputLabel>Infra Type</InputLabel>
-              <Select value={editInstance.infra_type || 'shared'} label="Infra Type" onChange={(e) => setEditInstance({ ...editInstance, infra_type: e.target.value })}>
-                {infraTypes.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+              <InputLabel>Infra</InputLabel>
+              <Select value={editInstance.infra_type || 'shared'} label="Infra" onChange={(e) => setEditInstance({ ...editInstance, infra_type: e.target.value })}>
+                {infraTypes.map((it) => <MenuItem key={it} value={it}>{it}</MenuItem>)}
               </Select>
             </FormControl>
           </Box>
+
+          <TextField size="small" label="Docker Image" value={editInstance.docker_image || ''}
+            onChange={(e) => setEditInstance({ ...editInstance, docker_image: e.target.value })}
+            sx={{ '& input': { fontSize: 12, fontFamily: 'monospace' } }} />
+
           {!!editInstance.id && (
             <FormControl size="small">
               <InputLabel>Status</InputLabel>
@@ -785,7 +830,9 @@ export default function AdminInfra() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setInstanceDialog(false)}>{t('button.cancel')}</Button>
-          <Button variant="contained" onClick={saveInstance}>{t('button.save')}</Button>
+          <Button variant="contained" color="success" onClick={saveInstance}>
+            {editInstance.id ? t('button.save') : 'Erstellen & Deployen'}
+          </Button>
         </DialogActions>
       </Dialog>
 
