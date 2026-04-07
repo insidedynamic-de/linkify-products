@@ -598,14 +598,14 @@ export default function AdminInfra() {
 
       {/* ── Node Dialog ── */}
       <Dialog open={nodeDialog} onClose={() => setNodeDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editNode.id ? 'Node bearbeiten' : 'Node erstellen'}</DialogTitle>
+        <DialogTitle>{editNode.id ? 'Node bearbeiten' : 'Neuer Node'}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
           <TextField size="small" label="Name" value={editNode.name || ''} onChange={(e) => setEditNode({ ...editNode, name: e.target.value })} />
           <Box sx={{ display: 'flex', gap: 2 }}>
             <FormControl size="small" fullWidth>
               <InputLabel>Provider</InputLabel>
-              <Select value={editNode.provider || 'hetzner'} label="Provider" onChange={(e) => {
-                setEditNode({ ...editNode, provider: e.target.value });
+              <Select value={editNode.provider || ''} label="Provider" onChange={(e) => {
+                setEditNode({ ...editNode, provider: e.target.value, _profile: '', _server_type: '' });
                 if (e.target.value === 'hetzner' && hetznerProfiles.length === 0) {
                   api.get('/admin/infra/providers/hetzner/profiles').then((res) => {
                     setHetznerProfiles(res.data.profiles || []);
@@ -613,13 +613,12 @@ export default function AdminInfra() {
                   }).catch(() => {});
                 }
               }}>
-                {providers.map((p) => <MenuItem key={p} value={p}>{p.toUpperCase()}</MenuItem>)}
-              </Select>
-            </FormControl>
-            <FormControl size="small" fullWidth>
-              <InputLabel>Typ</InputLabel>
-              <Select value={editNode.node_type || 'managed'} label="Typ" onChange={(e) => setEditNode({ ...editNode, node_type: e.target.value })}>
-                {nodeTypes.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                {providers.filter((p) => settings.some((s) => s.category === p && s.value_full)).map((p) => (
+                  <MenuItem key={p} value={p}>{p.toUpperCase()} ✓</MenuItem>
+                ))}
+                {providers.filter((p) => !settings.some((s) => s.category === p && s.value_full)).map((p) => (
+                  <MenuItem key={p} value={p} disabled>{p.toUpperCase()} (nicht konfiguriert)</MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>
@@ -637,18 +636,25 @@ export default function AdminInfra() {
               ) : (
                 <>
                   <FormControl size="small">
-                    <InputLabel>Server Profil</InputLabel>
-                    <Select value={(editNode._server_type as string) || ''} label="Server Profil" onChange={(e) => {
-                      const profile = hetznerProfiles.find((p) => p.id === e.target.value);
-                      if (profile) {
-                        setEditNode({ ...editNode, _server_type: profile.id, cpu: profile.cpu, ram: profile.ram, disk: profile.disk, _price: profile.price_monthly });
-                      }
+                    <InputLabel>Profil</InputLabel>
+                    <Select value={(editNode._profile as string) || ''} label="Profil" onChange={(e) => {
+                      const tier = e.target.value as string;
+                      const savedType = settings.find((s) => s.category === 'hetzner' && s.key === tier)?.value_full || '';
+                      const profile = hetznerProfiles.find((p) => p.id === savedType);
+                      setEditNode({ ...editNode, _profile: tier, _server_type: savedType,
+                        ...(profile ? { cpu: profile.cpu, ram: profile.ram, disk: profile.disk } : {}),
+                      });
                     }}>
-                      {hetznerProfiles.map((p) => (
-                        <MenuItem key={p.id} value={p.id}>
-                          {p.name} — {p.cpu} vCPU, {Math.round(p.ram / 1024)}GB, {p.disk}GB — €{p.price_monthly}/mo
-                        </MenuItem>
-                      ))}
+                      {['profile_low', 'profile_mid', 'profile_high', 'profile_premium'].filter((tier) => {
+                        return settings.some((s) => s.category === 'hetzner' && s.key === tier && s.value_full);
+                      }).map((tier) => {
+                        const saved = settings.find((s) => s.category === 'hetzner' && s.key === tier);
+                        const label = tier === 'profile_low' ? 'Low' : tier === 'profile_mid' ? 'Mittel' : tier === 'profile_high' ? 'Hoch' : 'Premium';
+                        const profile = hetznerProfiles.find((p) => p.id === saved?.value_full);
+                        return <MenuItem key={tier} value={tier}>
+                          {label}: {saved?.value_full} {profile ? `(${profile.cpu} vCPU, ${Math.round(profile.ram / 1024)}GB, €${profile.price_monthly}/mo)` : ''}
+                        </MenuItem>;
+                      })}
                     </Select>
                   </FormControl>
                   <FormControl size="small">
