@@ -81,26 +81,28 @@ export default function SaasDashboard() {
   const navigate = useNavigate();
   const theme = useTheme();
   const [products, setProducts] = useState<Product[]>([]);
+  const [instances, setInstances] = useState<{ id: number; product: string; name: string; domain: string; instance_url: string; status: string; max_connections: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const user = getUserFromToken();
 
-  const fetchProducts = useCallback(() => {
+  const fetchData = useCallback(() => {
     setLoading(true);
-    api.get('/products').then((res) => {
-      setProducts(res.data || []);
-    }).catch(() => {
-      setProducts([]);
+    Promise.all([
+      api.get('/products').catch(() => ({ data: [] })),
+      api.get('/my-instances').catch(() => ({ data: [] })),
+    ]).then(([prodRes, instRes]) => {
+      setProducts(prodRes.data || []);
+      setInstances(instRes.data || []);
     }).finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Re-fetch on tenant switch
   useEffect(() => {
-    const handler = () => fetchProducts();
+    const handler = () => fetchData();
     window.addEventListener('tenant-switched', handler);
     return () => window.removeEventListener('tenant-switched', handler);
-  }, [fetchProducts]);
+  }, [fetchData]);
 
   const [showAll, setShowAll] = useState(false);
   const expiredCount = useMemo(() => products.filter((p) => p.status === 'suspended' || p.status === 'expired').length, [products]);
@@ -137,6 +139,46 @@ export default function SaasDashboard() {
           </Button>
         </Box>
       </Box>
+
+      {/* Instances */}
+      {instances.length > 0 && (
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>Instanzen</Typography>
+          <Grid container spacing={2}>
+            {instances.map((inst) => (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={inst.id}>
+                <Card sx={{
+                  borderLeft: 4,
+                  borderColor: inst.status === 'online' ? 'success.main' : inst.status === 'provisioning' ? 'warning.main' : 'error.main',
+                  '&:hover': { transform: 'translateY(-2px)', boxShadow: 4 }, transition: 'all 0.15s',
+                }}>
+                  <CardContent sx={{ py: 1.5, px: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{inst.product.replace('Linkify ', '')}</Typography>
+                      <Chip label={inst.status} size="small" color={inst.status === 'online' ? 'success' : inst.status === 'provisioning' ? 'warning' : 'default'} />
+                    </Box>
+                    <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary', display: 'block', mb: 1 }}>
+                      {inst.domain}
+                    </Typography>
+                    {inst.max_connections > 0 && (
+                      <Chip label={`${inst.max_connections} conn`} size="small" sx={{ mr: 0.5, fontSize: 11 }} />
+                    )}
+                    <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+                      {inst.status === 'online' && (
+                        <Button size="small" variant="contained" color="primary"
+                          onClick={() => navigate(`/products/talkhub/${inst.id}`)}
+                          sx={{ textTransform: 'none', fontSize: 12 }}>
+                          Konfigurieren
+                        </Button>
+                      )}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      )}
 
       {visibleProducts.length === 0 ? (
         <Card sx={{ textAlign: 'center' }}>
