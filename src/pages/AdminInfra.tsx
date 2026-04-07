@@ -84,6 +84,7 @@ export default function AdminInfra() {
   // Dialogs
   const [nodeDialog, setNodeDialog] = useState(false);
   const [instanceDialog, setInstanceDialog] = useState(false);
+  const [portChecks, setPortChecks] = useState<Record<number, { port: string; protocol: string; open: boolean }[]>>({});
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const [editNode, setEditNode] = useState<any>({});
   const [editInstance, setEditInstance] = useState<any>({});
@@ -303,13 +304,20 @@ export default function AdminInfra() {
                         {i.max_connections > 0 && <Chip label={`${i.max_connections} conn`} size="small" color="primary" />}
                         {i.coolify_app_id && <Chip label="Coolify" size="small" variant="outlined" sx={{ fontSize: 10 }} />}
                       </Box>
-                      {/* Ports from template */}
+                      {/* Ports — colored after health check */}
                       {tmpl && tmpl.ports.length > 0 && (
                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
-                          {tmpl.ports.map((p, idx) => (
-                            <Chip key={idx} label={`${p.port}/${p.protocol}`} size="small" variant="outlined"
-                              sx={{ fontSize: 10, height: 20 }} title={p.description} />
-                          ))}
+                          {tmpl.ports.map((p, idx) => {
+                            const checks = portChecks[i.id];
+                            const check = checks?.find((c) => c.port === p.port && c.protocol === p.protocol);
+                            return (
+                              <Chip key={idx} label={`${p.port}/${p.protocol}`} size="small"
+                                variant={check ? 'filled' : 'outlined'}
+                                color={check ? (check.open ? 'success' : 'error') : 'default'}
+                                sx={{ fontSize: 10, height: 20 }}
+                                title={`${p.description}${check ? (check.open ? ' ✓ open' : ' ✗ closed') : ''}`} />
+                            );
+                          })}
                           <Chip label={tmpl.cf_proxy ? 'CF Proxy' : 'DNS only'} size="small"
                             color={tmpl.cf_proxy ? 'success' : 'warning'} sx={{ fontSize: 10, height: 20 }} />
                         </Box>
@@ -320,6 +328,7 @@ export default function AdminInfra() {
                           try {
                             const r = await api.post(`/admin/infra/instances/${i.id}/check`);
                             setToast({ open: true, message: `${i.name}: ${r.data.status}`, severity: r.data.success ? 'success' : 'error' });
+                            if (r.data.ports) setPortChecks((prev) => ({ ...prev, [i.id]: r.data.ports }));
                             fetchAll();
                           } catch { setToast({ open: true, message: 'Check failed', severity: 'error' }); }
                         }}>Health</Button>
