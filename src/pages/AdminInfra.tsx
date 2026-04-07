@@ -756,84 +756,20 @@ export default function AdminInfra() {
         </DialogActions>
       </Dialog>
 
+
       {/* ── Instance Dialog ── */}
       <Dialog open={instanceDialog} onClose={() => setInstanceDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editInstance.id ? 'Instanz bearbeiten' : 'Neue Instanz'}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
-          {/* Product from templates */}
+
+          {/* 1. Kunde */}
           <FormControl size="small">
-            <InputLabel>Produkt</InputLabel>
-            <Select value={editInstance.product || ''} label="Produkt" onChange={(e) => {
-              const prod = String(e.target.value);
-              const tmpl = templates.find((t) => t.product === prod);
-              setEditInstance({ ...editInstance, product: prod, docker_image: tmpl?.docker_image || '', _domain_prefix: tmpl?.domain_prefix || '' });
-            }}>
-              {templates.filter((t) => t.docker_image).map((t) => (
-                <MenuItem key={t.product} value={t.product}>{t.product}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {/* Node — nur online mit Coolify */}
-          <FormControl size="small">
-            <InputLabel>Node</InputLabel>
-            <Select value={editInstance.node_id || ''} label="Node" onChange={(e) => setEditInstance({ ...editInstance, node_id: Number(e.target.value) })}>
-              {nodes.filter((n) => n.status === 'online' && n.coolify_server_id).map((n) => (
-                <MenuItem key={n.id} value={n.id}>{n.name} ({n.provider}) — {n.instance_count}/{n.max_containers}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          {/* Lizenz */}
-          {tenantLicenses.length > 0 && (
-            <FormControl size="small">
-              <InputLabel>Lizenz</InputLabel>
-              <Select value={editInstance.license_key || ''} label="Lizenz" onChange={(e) => {
-                const lic = tenantLicenses.find((l: any) => l.license_key === e.target.value);
-                if (lic) {
-                  const tmpl = templates.find((t) => t.product === lic._product);
-                  setEditInstance({ ...editInstance, license_key: lic.license_key, product: lic._product,
-                    docker_image: tmpl?.docker_image || editInstance.docker_image,
-                    _domain_prefix: tmpl?.domain_prefix || '',
-                    max_connections: lic.max_connections || 0,
-                  });
-                }
-              }}>
-                {tenantLicenses.map((l: any) => (
-                  <MenuItem key={l.license_key} value={l.license_key}>
-                    {l._product} — {l.license_name} ({l.max_connections} conn) [{l.license_key}]
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          {/* Domain: subdomain input + root preview */}
-          <Box sx={{ display: 'flex', gap: 0, alignItems: 'center' }}>
-            <TextField size="small" label="Subdomain" value={editInstance.name || ''}
-              onChange={(e) => setEditInstance({ ...editInstance, name: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-              sx={{ flex: 1 }}
-              slotProps={{ input: { endAdornment: (
-                <InputAdornment position="end">
-                  <Button size="small" sx={{ minWidth: 0, fontSize: 11, px: 1 }} onClick={() => {
-                    const c = 'abcdefghjkmnpqrstuvwxyz23456789';
-                    setEditInstance({ ...editInstance, name: Array.from({length: 5}, () => c[Math.floor(Math.random() * c.length)]).join('') });
-                  }}>Gen</Button>
-                </InputAdornment>
-              )}}} />
-            <Typography sx={{ px: 1, color: 'text.secondary', fontSize: 12, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-              .{editInstance._domain_prefix || 'product'}.{settings.find((s: SettingRow) => s.category === 'cloudflare' && s.key === 'root_domain')?.value_full || 'flxo.cloud'}
-            </Typography>
-          </Box>
-
-          {/* Kunde */}
-          <FormControl size="small">
-            <InputLabel>Kunde</InputLabel>
-            <Select value={editInstance.tenant_id || ''} label="Kunde" onChange={(e) => {
+            <InputLabel>1. Kunde</InputLabel>
+            <Select value={editInstance.tenant_id || ''} label="1. Kunde" onChange={(e) => {
               const tid = Number(e.target.value);
               const tenant = tenantList.find((t) => t.id === tid);
-              setEditInstance({ ...editInstance, tenant_id: tid, tenant_ids: [tid], license_key: '', name: (tenant?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15) });
-              // Load tenant's products/licenses
+              setEditInstance({ ...editInstance, tenant_id: tid, tenant_ids: [tid], license_key: '', product: '', _domain_prefix: '', name: (tenant?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 15) });
+              setTenantLicenses([]);
               api.get('/products', { headers: { 'X-Tenant-Id': String(tid) } }).then((res) => {
                 const lics: any[] = [];
                 for (const p of (res.data || [])) {
@@ -852,15 +788,94 @@ export default function AdminInfra() {
             </Select>
           </FormControl>
 
-          {/* Full domain preview */}
-          {editInstance.name && (
-            <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'primary.main', bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 1 }}>
-              {editInstance.name}.{editInstance._domain_prefix || 'product'}.{settings.find((s: SettingRow) => s.category === 'cloudflare' && s.key === 'root_domain')?.value_full || 'flxo.cloud'}
-            </Typography>
+          {/* 2. Node (admin/superadmin wählt, client bekommt auto) */}
+          {editInstance.tenant_id && (
+            <FormControl size="small">
+              <InputLabel>2. Node</InputLabel>
+              <Select value={editInstance.node_id || ''} label="2. Node" onChange={(e) => setEditInstance({ ...editInstance, node_id: Number(e.target.value) })}>
+                {nodes.filter((n) => n.status === 'online' && n.coolify_server_id).map((n) => (
+                  <MenuItem key={n.id} value={n.id}>{n.name} ({n.provider}) — {n.instance_count}/{n.max_containers}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           )}
 
+          {/* 3. Produkt (aus Lizenzen des Kunden, nur mit Docker Image) */}
+          {editInstance.node_id && tenantLicenses.length > 0 && (
+            <FormControl size="small">
+              <InputLabel>3. Produkt</InputLabel>
+              <Select value={editInstance.product || ''} label="3. Produkt" onChange={(e) => {
+                const prod = String(e.target.value);
+                const tmpl = templates.find((t) => t.product === prod);
+                setEditInstance({ ...editInstance, product: prod, license_key: '', docker_image: tmpl?.docker_image || '', _domain_prefix: tmpl?.domain_prefix || '' });
+              }}>
+                {[...new Set(tenantLicenses.map((l: any) => l._product))].map((prod) => {
+                  const tmpl = templates.find((t) => t.product === prod);
+                  return <MenuItem key={String(prod)} value={String(prod)} disabled={!tmpl?.docker_image}>
+                    {String(prod)} {!tmpl?.docker_image ? '(kein Docker Image)' : ''}
+                  </MenuItem>;
+                })}
+              </Select>
+            </FormControl>
+          )}
 
+          {/* 4. Lizenz-Auswahl (klickbare Liste) */}
+          {editInstance.product && (() => {
+            const productLics = tenantLicenses.filter((l: any) => l._product === editInstance.product);
+            if (productLics.length === 0) return null;
+            return (
+              <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>4. Lizenz wählen</Typography>
+                {productLics.map((l: any) => (
+                  <Box key={l.license_key} sx={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    mb: 0.5, py: 0.75, px: 1.5, borderRadius: 1, cursor: 'pointer',
+                    border: 1, borderColor: editInstance.license_key === l.license_key ? 'primary.main' : 'transparent',
+                    bgcolor: editInstance.license_key === l.license_key ? 'action.selected' : 'transparent',
+                    '&:hover': { bgcolor: 'action.hover' },
+                  }} onClick={() => setEditInstance({ ...editInstance, license_key: l.license_key, max_connections: l.max_connections || 0 })}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{l.license_name}</Typography>
+                      <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>{l.license_key}</Typography>
+                    </Box>
+                    <Box sx={{ textAlign: 'right' }}>
+                      {l.max_connections > 0 && <Typography variant="body2">{l.max_connections} conn</Typography>}
+                      <Typography variant="caption" color={l.effective_status === 'grace' ? 'warning.main' : 'text.secondary'}>
+                        {l.expires_at ? `bis ${new Date(l.expires_at).toLocaleDateString()}` : 'unbegrenzt'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            );
+          })()}
 
+          {/* 5. Subdomain */}
+          {editInstance.license_key && (
+            <>
+              <Box sx={{ display: 'flex', gap: 0, alignItems: 'center' }}>
+                <TextField size="small" label="5. Subdomain" value={editInstance.name || ''}
+                  onChange={(e) => setEditInstance({ ...editInstance, name: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                  sx={{ flex: 1 }}
+                  slotProps={{ input: { endAdornment: (
+                    <InputAdornment position="end">
+                      <Button size="small" sx={{ minWidth: 0, fontSize: 11, px: 1 }} onClick={() => {
+                        const c = 'abcdefghjkmnpqrstuvwxyz23456789';
+                        setEditInstance({ ...editInstance, name: Array.from({length: 5}, () => c[Math.floor(Math.random() * c.length)]).join('') });
+                      }}>Gen</Button>
+                    </InputAdornment>
+                  )}}} />
+                <Typography sx={{ px: 1, color: 'text.secondary', fontSize: 12, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                  .{editInstance._domain_prefix || 'product'}.{settings.find((s: SettingRow) => s.category === 'cloudflare' && s.key === 'root_domain')?.value_full || 'flxo.cloud'}
+                </Typography>
+              </Box>
+              <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'primary.main', bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 1 }}>
+                {editInstance.name || '?'}.{editInstance._domain_prefix || 'product'}.{settings.find((s: SettingRow) => s.category === 'cloudflare' && s.key === 'root_domain')?.value_full || 'flxo.cloud'}
+              </Typography>
+            </>
+          )}
+
+          {/* Edit mode */}
           {!!editInstance.id && (
             <FormControl size="small">
               <InputLabel>Status</InputLabel>
@@ -872,7 +887,9 @@ export default function AdminInfra() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setInstanceDialog(false)}>{t('button.cancel')}</Button>
-          <Button variant="contained" color="success" onClick={saveInstance}>
+          <Button variant="contained" color="success"
+            disabled={!editInstance.tenant_id || !editInstance.node_id || !editInstance.product || !editInstance.license_key || !editInstance.name}
+            onClick={saveInstance}>
             {editInstance.id ? t('button.save') : 'Erstellen & Deployen'}
           </Button>
         </DialogActions>
