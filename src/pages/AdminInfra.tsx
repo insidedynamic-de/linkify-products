@@ -266,36 +266,76 @@ export default function AdminInfra() {
               setInstanceDialog(true);
             }}>Instanz erstellen</Button>
           </Box>
-          <TableContainer component={Card}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Product</TableCell>
-                  <TableCell>Domain</TableCell>
-                  <TableCell>Node</TableCell>
-                  <TableCell>Tenants</TableCell>
-                  <TableCell>Conn</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {instances.map((i) => (
-                  <TableRow key={i.id} sx={{ opacity: i.is_active ? 1 : 0.4 }}>
-                    <TableCell><strong>{i.product}</strong><br /><Typography variant="caption">{i.name}</Typography></TableCell>
-                    <TableCell><Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: 12 }}>{i.domain || '—'}</Typography></TableCell>
-                    <TableCell>{i.node_name || '—'}</TableCell>
-                    <TableCell>{i.tenants.map((t) => t.tenant_name).join(', ') || '—'}</TableCell>
-                    <TableCell>{i.max_connections}</TableCell>
-                    <TableCell><Chip label={i.status} size="small" color={i.status === 'online' ? 'success' : i.status === 'provisioning' ? 'warning' : 'default'} /></TableCell>
-                    <TableCell>
-                      <IconButton size="small" onClick={() => { setEditInstance({ ...i } as Record<string, unknown>); setInstanceDialog(true); }}><EditIcon fontSize="small" /></IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <Grid container spacing={3}>
+            {instances.map((i) => {
+              const tmpl = templates.find((t) => t.product === i.product);
+              return (
+                <Grid size={{ xs: 12, md: 6 }} key={i.id}>
+                  <Card sx={{
+                    borderLeft: 4, opacity: i.is_active ? 1 : 0.4,
+                    borderColor: i.status === 'online' ? 'success.main' : i.status === 'provisioning' ? 'warning.main' : 'error.main',
+                    '&:hover': { transform: 'translateY(-2px)', boxShadow: 4 }, transition: 'all 0.15s',
+                  }}>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Box>
+                          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: 16 }}>{i.product}</Typography>
+                          <Typography variant="caption" color="text.secondary">{i.name}</Typography>
+                        </Box>
+                        <Chip label={i.status} size="small" color={i.status === 'online' ? 'success' : i.status === 'provisioning' ? 'warning' : 'default'} />
+                      </Box>
+                      {/* Domain */}
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: 12, mb: 0.5 }}>{i.domain || '—'}</Typography>
+                      {/* Info row */}
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+                        <Chip label={i.node_name || '?'} size="small" variant="outlined" />
+                        {i.tenants.map((t) => <Chip key={t.tenant_id} label={t.tenant_name} size="small" />)}
+                        {i.max_connections > 0 && <Chip label={`${i.max_connections} conn`} size="small" color="primary" />}
+                        {i.coolify_app_id && <Chip label="Coolify" size="small" variant="outlined" sx={{ fontSize: 10 }} />}
+                      </Box>
+                      {/* Ports from template */}
+                      {tmpl && tmpl.ports.length > 0 && (
+                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
+                          {tmpl.ports.map((p, idx) => (
+                            <Chip key={idx} label={`${p.port}/${p.protocol}`} size="small" variant="outlined"
+                              sx={{ fontSize: 10, height: 20 }} title={p.description} />
+                          ))}
+                          <Chip label={tmpl.cf_proxy ? 'CF Proxy' : 'DNS only'} size="small"
+                            color={tmpl.cf_proxy ? 'success' : 'warning'} sx={{ fontSize: 10, height: 20 }} />
+                        </Box>
+                      )}
+                      {/* Actions */}
+                      <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
+                        <Button size="small" onClick={async () => {
+                          try {
+                            const r = await api.post(`/admin/infra/instances/${i.id}/check`);
+                            setToast({ open: true, message: `${i.name}: ${r.data.status}`, severity: r.data.success ? 'success' : 'error' });
+                            fetchAll();
+                          } catch { setToast({ open: true, message: 'Check failed', severity: 'error' }); }
+                        }}>Health</Button>
+                        <Button size="small" onClick={async () => {
+                          try {
+                            await api.post(`/admin/infra/instances/${i.id}/firewall`);
+                            setToast({ open: true, message: 'Firewall aktualisiert', severity: 'success' });
+                          } catch { setToast({ open: true, message: 'Firewall failed', severity: 'error' }); }
+                        }}>Firewall</Button>
+                        <Box sx={{ flex: 1 }} />
+                        <IconButton size="small" onClick={() => { setEditInstance({ ...i }); setInstanceDialog(true); }}><EditIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" color="error" onClick={async () => {
+                          if (!confirm(`Instanz "${i.name}" löschen?`)) return;
+                          try {
+                            await api.delete(`/admin/infra/instances/${i.id}`);
+                            setToast({ open: true, message: 'Gelöscht', severity: 'success' });
+                            fetchAll();
+                          } catch { setToast({ open: true, message: 'Fehler', severity: 'error' }); }
+                        }}><DeleteIcon fontSize="small" /></IconButton>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })}
+          </Grid>
         </>
       )}
 
