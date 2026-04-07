@@ -285,18 +285,29 @@ export default function AdminInfra() {
             { category: 'coolify', title: 'Coolify', icon: '🔧', fields: [
               { key: 'url', description: 'Coolify URL', placeholder: 'https://cp.flxo.cloud' },
               { key: 'api_token', description: 'API Token', placeholder: '' },
-            ]},
+            ], profiles: false },
             { category: 'cloudflare', title: 'Cloudflare', icon: '☁️', fields: [
               { key: 'email', description: 'Email', placeholder: 'admin@example.com' },
               { key: 'api_key', description: 'Global API Key', placeholder: '' },
               { key: 'zone_id_flxo', description: 'Zone ID (flxo.cloud)', placeholder: '' },
-            ]},
+            ], profiles: false },
             { category: 'hetzner', title: 'Hetzner Cloud', icon: '🖥️', fields: [
               { key: 'api_token', description: 'API Token', placeholder: '' },
-            ]},
+            ], profiles: true },
             { category: 'ionos', title: 'IONOS', icon: '🖥️', fields: [
               { key: 'api_token', description: 'API Token', placeholder: '' },
-            ]},
+            ], profiles: true },
+            { category: 'aws', title: 'AWS', icon: '☁️', fields: [
+              { key: 'access_key', description: 'Access Key ID', placeholder: '' },
+              { key: 'secret_key', description: 'Secret Access Key', placeholder: '' },
+              { key: 'region', description: 'Default Region', placeholder: 'eu-central-1' },
+            ], profiles: true },
+            { category: 'azure', title: 'Azure', icon: '☁️', fields: [
+              { key: 'tenant_id', description: 'Tenant ID', placeholder: '' },
+              { key: 'client_id', description: 'Client ID', placeholder: '' },
+              { key: 'client_secret', description: 'Client Secret', placeholder: '' },
+              { key: 'subscription_id', description: 'Subscription ID', placeholder: '' },
+            ], profiles: true },
           ].map((block) => {
             const blockSettings = settings.filter((s) => s.category === block.category);
             const hasValues = block.fields.some((f) => {
@@ -343,6 +354,60 @@ export default function AdminInfra() {
                         />
                       );
                     })}
+                    {/* Profile presets for cloud providers */}
+                    {block.profiles && (() => {
+                      const tiers = [
+                        { key: 'profile_low', label: 'Low' },
+                        { key: 'profile_mid', label: 'Mittel' },
+                        { key: 'profile_high', label: 'Hoch' },
+                        { key: 'profile_premium', label: 'Premium' },
+                      ];
+                      const blockProfiles = block.category === 'hetzner' ? hetznerProfiles : [];
+                      const hasApiProfiles = block.category === 'hetzner'; // only hetzner has API profiles for now
+                      return (
+                        <Box sx={{ mt: 1, mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="subtitle2">Server-Profile</Typography>
+                            {hasApiProfiles && blockProfiles.length === 0 && (
+                              <Button size="small" onClick={() => {
+                                api.get(`/admin/infra/providers/${block.category}/profiles`).then((res) => {
+                                  if (block.category === 'hetzner') {
+                                    setHetznerProfiles(res.data.profiles || []);
+                                    setHetznerLocations(res.data.locations || []);
+                                  }
+                                }).catch(() => setToast({ open: true, message: 'API Fehler', severity: 'error' }));
+                              }}>Profile laden</Button>
+                            )}
+                          </Box>
+                          {tiers.map((tier) => {
+                            const savedValue = settings.find((s) => s.category === block.category && s.key === tier.key)?.value_full || '';
+                            return (
+                              <Box key={tier.key} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
+                                <Chip label={tier.label} size="small" sx={{ minWidth: 70 }} color={tier.key === 'profile_premium' ? 'error' : tier.key === 'profile_high' ? 'warning' : tier.key === 'profile_mid' ? 'primary' : 'default'} />
+                                {hasApiProfiles && blockProfiles.length > 0 ? (
+                                  <FormControl size="small" fullWidth>
+                                    <Select value={savedValue} displayEmpty onChange={(e) => saveSetting(block.category, tier.key, e.target.value as string, `${tier.label} profile`)}>
+                                      <MenuItem value="">— {tier.label} —</MenuItem>
+                                      {blockProfiles.map((p) => (
+                                        <MenuItem key={p.id} value={p.id}>
+                                          {p.name} — {p.cpu} vCPU, {Math.round(p.ram / 1024)}GB, {p.disk}GB — €{p.price_monthly}/mo
+                                        </MenuItem>
+                                      ))}
+                                    </Select>
+                                  </FormControl>
+                                ) : (
+                                  <TextField size="small" fullWidth placeholder="z.B. VPS L+ (6 vCPU, 8GB)"
+                                    defaultValue={savedValue}
+                                    onBlur={(e) => { if (e.target.value !== savedValue) saveSetting(block.category, tier.key, e.target.value, `${tier.label} profile`); }}
+                                  />
+                                )}
+                              </Box>
+                            );
+                          })}
+                        </Box>
+                      );
+                    })()}
+
                     <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
                       <Button size="small" variant="outlined" onClick={() => {
                         // Save all fields in this block
