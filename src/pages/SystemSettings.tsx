@@ -10,6 +10,7 @@ import api from '../api/client';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Toast from '../components/Toast';
 import { ServerCard, CodecCard, ImportExportCard } from '../components/settings';
+import VapiIntegration from './VapiIntegration';
 
 export default function SystemSettings() {
   const { t } = useTranslation();
@@ -56,6 +57,7 @@ export default function SystemSettings() {
         codecPrefs={String(settings.codec_prefs || '')}
         onChange={(val) => onChange('codec_prefs', val)}
       />
+      <VapiIntegration />
       <ImportExportCard onToast={showToast} onReload={loadSettings} />
 
       <ConfirmDialog open={confirmSave} variant="save"

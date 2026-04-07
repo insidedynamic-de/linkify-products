@@ -48,7 +48,8 @@ api.interceptors.response.use(
       original._retry ||
       original.url?.includes('/auth/login') ||
       original.url?.includes('/auth/register') ||
-      original.url?.includes('/auth/refresh')
+      original.url?.includes('/auth/refresh') ||
+      original.url?.includes('/integrations/')
     ) {
       return Promise.reject(err);
     }
