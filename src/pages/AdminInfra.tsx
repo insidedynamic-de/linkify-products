@@ -806,9 +806,6 @@ export default function AdminInfra() {
           )}
 
 
-          <TextField size="small" label="Docker Image" value={editInstance.docker_image || ''}
-            onChange={(e) => setEditInstance({ ...editInstance, docker_image: e.target.value })}
-            sx={{ '& input': { fontSize: 12, fontFamily: 'monospace' } }} />
 
           {!!editInstance.id && (
             <FormControl size="small">
