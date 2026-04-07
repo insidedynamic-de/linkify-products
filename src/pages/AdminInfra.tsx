@@ -772,9 +772,11 @@ export default function AdminInfra() {
               setTenantLicenses([]);
               api.get('/products', { headers: { 'X-Tenant-Id': String(tid) } }).then((res) => {
                 const lics: any[] = [];
+                const seen = new Set<string>();
                 for (const p of (res.data || [])) {
                   for (const l of (p.licenses || [])) {
-                    if (l.effective_status === 'active' || l.effective_status === 'grace') {
+                    if ((l.effective_status === 'active' || l.effective_status === 'grace') && !seen.has(l.license_key)) {
+                      seen.add(l.license_key);
                       lics.push({ ...l, _product: p.product });
                     }
                   }
