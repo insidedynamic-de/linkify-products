@@ -12,6 +12,7 @@ import {
   InputAdornment,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import DescriptionIcon from '@mui/icons-material/Description';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -71,6 +72,7 @@ export default function AdminInfra() {
   const [nodes, setNodes] = useState<NodeRow[]>([]);
   const [instances, setInstances] = useState<InstanceRow[]>([]);
   const [settings, setSettings] = useState<SettingRow[]>([]);
+  const [templates, setTemplates] = useState<{ id: number; product: string; docker_image: string; ports: { port: string | number; protocol: string; description: string }[]; cf_proxy: boolean; domain_prefix: string; description: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
 
@@ -84,19 +86,23 @@ export default function AdminInfra() {
   const [instanceDialog, setInstanceDialog] = useState(false);
   const [editNode, setEditNode] = useState<Record<string, unknown>>({});
   const [editInstance, setEditInstance] = useState<Record<string, unknown>>({});
+  const [editTemplate, setEditTemplate] = useState<Record<string, unknown>>({});
+  const [templateDialog, setTemplateDialog] = useState(false);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [nRes, iRes, sRes] = await Promise.all([
+      const [nRes, iRes, sRes, tRes] = await Promise.all([
         api.get('/admin/infra/nodes').catch(() => ({ data: [] })),
         api.get('/admin/infra/instances').catch(() => ({ data: [] })),
         api.get('/admin/infra/settings').catch(() => ({ data: [] })),
+        api.get('/admin/infra/templates').catch(() => ({ data: [] })),
       ]);
       setNodes(nRes.data || []);
       setInstances(iRes.data || []);
       setSettings(sRes.data || []);
+      setTemplates(tRes.data || []);
     } catch { /* */ }
     setLoading(false);
   }, []);
@@ -172,6 +178,7 @@ export default function AdminInfra() {
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3 }}>
         <Tab icon={<DnsIcon />} label={`Nodes (${nodes.length})`} iconPosition="start" />
         <Tab icon={<StorageIcon />} label={`Instanzen (${instances.length})`} iconPosition="start" />
+        <Tab icon={<DescriptionIcon />} label={`Templates (${templates.length})`} iconPosition="start" />
         <Tab icon={<SettingsIcon />} label="Einstellungen" iconPosition="start" />
       </Tabs>
 
@@ -278,8 +285,62 @@ export default function AdminInfra() {
         </>
       )}
 
-      {/* ── TAB 2: Settings (grouped by provider) ── */}
+      {/* ── TAB 2: Templates ── */}
       {tab === 2 && (
+        <>
+          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+            <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => {
+              setEditTemplate({ product: '', docker_image: '', ports: [], cf_proxy: true, domain_prefix: '', description: '' });
+              setTemplateDialog(true);
+            }}>Template hinzufügen</Button>
+            <Button variant="outlined" size="small" onClick={async () => {
+              try {
+                await api.post('/admin/infra/templates/seed');
+                setToast({ open: true, message: 'Default templates created', severity: 'success' });
+                fetchAll();
+              } catch { setToast({ open: true, message: 'Error', severity: 'error' }); }
+            }}>Defaults laden</Button>
+          </Box>
+          <Grid container spacing={3}>
+            {templates.map((tmpl) => (
+              <Grid size={{ xs: 12, md: 6 }} key={tmpl.id}>
+                <Card sx={{ '&:hover': { transform: 'translateY(-2px)', boxShadow: 4 }, transition: 'all 0.15s' }}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>{tmpl.product}</Typography>
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Chip label={tmpl.cf_proxy ? 'CF Proxy' : 'DNS only'} size="small" color={tmpl.cf_proxy ? 'success' : 'warning'} />
+                        <Chip label={tmpl.domain_prefix || '—'} size="small" variant="outlined" />
+                      </Box>
+                    </Box>
+                    {tmpl.description && <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{tmpl.description}</Typography>}
+                    {tmpl.docker_image && (
+                      <Typography variant="caption" sx={{ fontFamily: 'monospace', display: 'block', mb: 1, color: 'text.secondary' }}>
+                        {tmpl.docker_image}
+                      </Typography>
+                    )}
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
+                      {tmpl.ports.map((p, i) => (
+                        <Chip key={i} label={`${p.port}/${p.protocol}`} size="small" variant="outlined"
+                          title={p.description} sx={{ fontSize: 11 }} />
+                      ))}
+                    </Box>
+                    <Box sx={{ pt: 1, borderTop: 1, borderColor: 'divider' }}>
+                      <IconButton size="small" onClick={() => {
+                        setEditTemplate({ ...tmpl, ports: JSON.stringify(tmpl.ports, null, 2) });
+                        setTemplateDialog(true);
+                      }}><EditIcon fontSize="small" /></IconButton>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </>
+      )}
+
+      {/* ── TAB 3: Settings (grouped by provider) ── */}
+      {tab === 3 && (
         <Grid container spacing={3}>
           {[
             { category: 'coolify', title: 'Coolify', icon: '🔧', fields: [
@@ -437,6 +498,39 @@ export default function AdminInfra() {
           })}
         </Grid>
       )}
+
+      {/* ── Template Dialog ── */}
+      <Dialog open={templateDialog} onClose={() => setTemplateDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{editTemplate.id ? 'Template bearbeiten' : 'Template hinzufügen'}</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
+          <TextField size="small" label="Product" value={editTemplate.product || ''} onChange={(e) => setEditTemplate({ ...editTemplate, product: e.target.value })} />
+          <TextField size="small" label="Docker Image" value={editTemplate.docker_image || ''} onChange={(e) => setEditTemplate({ ...editTemplate, docker_image: e.target.value })} placeholder="ghcr.io/..." />
+          <TextField size="small" label="Domain Prefix" value={editTemplate.domain_prefix || ''} onChange={(e) => setEditTemplate({ ...editTemplate, domain_prefix: e.target.value })} placeholder="talkhub → {client}.talkhub.flxo.cloud" />
+          <FormControl size="small">
+            <InputLabel>Cloudflare</InputLabel>
+            <Select value={editTemplate.cf_proxy === false ? 'dns' : 'proxy'} label="Cloudflare" onChange={(e) => setEditTemplate({ ...editTemplate, cf_proxy: e.target.value === 'proxy' })}>
+              <MenuItem value="proxy">CF Proxy (HTTPS only products)</MenuItem>
+              <MenuItem value="dns">DNS only (SIP/UDP products)</MenuItem>
+            </Select>
+          </FormControl>
+          <TextField size="small" label="Ports (JSON)" multiline rows={4} value={typeof editTemplate.ports === 'string' ? editTemplate.ports : JSON.stringify(editTemplate.ports || [], null, 2)}
+            onChange={(e) => setEditTemplate({ ...editTemplate, ports: e.target.value })}
+            sx={{ '& textarea': { fontFamily: 'monospace', fontSize: 12 } }} />
+          <TextField size="small" label="Description" value={editTemplate.description || ''} onChange={(e) => setEditTemplate({ ...editTemplate, description: e.target.value })} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTemplateDialog(false)}>{t('button.cancel')}</Button>
+          <Button variant="contained" onClick={async () => {
+            try {
+              const ports = typeof editTemplate.ports === 'string' ? JSON.parse(editTemplate.ports as string) : editTemplate.ports;
+              await api.put(`/admin/infra/templates/${editTemplate.product}`, { ...editTemplate, ports });
+              setToast({ open: true, message: 'Template gespeichert', severity: 'success' });
+              setTemplateDialog(false);
+              fetchAll();
+            } catch { setToast({ open: true, message: 'Error', severity: 'error' }); }
+          }}>{t('button.save')}</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Node Dialog ── */}
       <Dialog open={nodeDialog} onClose={() => setNodeDialog(false)} maxWidth="sm" fullWidth>
