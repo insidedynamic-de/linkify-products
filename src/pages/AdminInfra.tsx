@@ -327,7 +327,7 @@ export default function AdminInfra() {
                     </Box>
                     <Box sx={{ pt: 1, borderTop: 1, borderColor: 'divider' }}>
                       <IconButton size="small" onClick={() => {
-                        setEditTemplate({ ...tmpl, ports: JSON.stringify(tmpl.ports, null, 2) });
+                        setEditTemplate({ ...tmpl });
                         setTemplateDialog(true);
                       }}><EditIcon fontSize="small" /></IconButton>
                     </Box>
@@ -513,17 +513,57 @@ export default function AdminInfra() {
               <MenuItem value="dns">DNS only (SIP/UDP products)</MenuItem>
             </Select>
           </FormControl>
-          <TextField size="small" label="Ports (JSON)" multiline rows={4} value={typeof editTemplate.ports === 'string' ? editTemplate.ports : JSON.stringify(editTemplate.ports || [], null, 2)}
-            onChange={(e) => setEditTemplate({ ...editTemplate, ports: e.target.value })}
-            sx={{ '& textarea': { fontFamily: 'monospace', fontSize: 12 } }} />
+          {/* Ports GUI */}
+          <Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="subtitle2">Ports</Typography>
+              <Button size="small" onClick={() => {
+                const ports = Array.isArray(editTemplate.ports) ? [...editTemplate.ports as { port: string; protocol: string; description: string }[]] : [];
+                ports.push({ port: '', protocol: 'tcp', description: '' });
+                setEditTemplate({ ...editTemplate, ports });
+              }}>+ Port</Button>
+            </Box>
+            {(Array.isArray(editTemplate.ports) ? editTemplate.ports as { port: string; protocol: string; description: string }[] : []).map((p, i) => (
+              <Box key={i} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
+                <TextField size="small" label="Port" value={p.port} sx={{ width: 130 }}
+                  placeholder="5060 / 16384-16484"
+                  onChange={(e) => {
+                    const ports = [...editTemplate.ports as { port: string; protocol: string; description: string }[]];
+                    ports[i] = { ...ports[i], port: e.target.value };
+                    setEditTemplate({ ...editTemplate, ports });
+                  }} />
+                <FormControl size="small" sx={{ width: 90 }}>
+                  <Select value={p.protocol} onChange={(e) => {
+                    const ports = [...editTemplate.ports as { port: string; protocol: string; description: string }[]];
+                    ports[i] = { ...ports[i], protocol: e.target.value };
+                    setEditTemplate({ ...editTemplate, ports });
+                  }}>
+                    <MenuItem value="tcp">TCP</MenuItem>
+                    <MenuItem value="udp">UDP</MenuItem>
+                    <MenuItem value="tcp+udp">Both</MenuItem>
+                  </Select>
+                </FormControl>
+                <TextField size="small" label="Beschreibung" value={p.description} fullWidth
+                  onChange={(e) => {
+                    const ports = [...editTemplate.ports as { port: string; protocol: string; description: string }[]];
+                    ports[i] = { ...ports[i], description: e.target.value };
+                    setEditTemplate({ ...editTemplate, ports });
+                  }} />
+                <IconButton size="small" color="error" onClick={() => {
+                  const ports = [...editTemplate.ports as { port: string; protocol: string; description: string }[]];
+                  ports.splice(i, 1);
+                  setEditTemplate({ ...editTemplate, ports });
+                }}><DeleteIcon fontSize="small" /></IconButton>
+              </Box>
+            ))}
+          </Box>
           <TextField size="small" label="Description" value={editTemplate.description || ''} onChange={(e) => setEditTemplate({ ...editTemplate, description: e.target.value })} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setTemplateDialog(false)}>{t('button.cancel')}</Button>
           <Button variant="contained" onClick={async () => {
             try {
-              const ports = typeof editTemplate.ports === 'string' ? JSON.parse(editTemplate.ports as string) : editTemplate.ports;
-              await api.put(`/admin/infra/templates/${editTemplate.product}`, { ...editTemplate, ports });
+              await api.put(`/admin/infra/templates/${editTemplate.product}`, editTemplate);
               setToast({ open: true, message: 'Template gespeichert', severity: 'success' });
               setTemplateDialog(false);
               fetchAll();
