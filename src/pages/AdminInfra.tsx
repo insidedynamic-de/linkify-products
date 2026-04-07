@@ -273,47 +273,99 @@ export default function AdminInfra() {
         </>
       )}
 
-      {/* ── TAB 2: Settings ── */}
+      {/* ── TAB 2: Settings (grouped by provider) ── */}
       {tab === 2 && (
-        <Card>
-          <CardContent>
-            <Typography variant="h6" sx={{ mb: 2 }}>API Keys & Tokens</Typography>
-            {settingsTemplate.map((tmpl) => {
-              const existing = settings.find((s) => s.category === tmpl.category && s.key === tmpl.key);
-              const fieldKey = `${tmpl.category}/${tmpl.key}`;
-              const isSecret = tmpl.key.includes('token') || tmpl.key.includes('key');
-              return (
-                <Box key={fieldKey} sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center' }}>
-                  <Chip label={tmpl.category} size="small" sx={{ minWidth: 80 }} />
-                  <TextField
-                    size="small" fullWidth
-                    label={tmpl.description}
-                    defaultValue={existing?.value_full || ''}
-                    type={isSecret && !showSecrets[fieldKey] ? 'password' : 'text'}
-                    slotProps={{
-                      input: {
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            {isSecret && (
-                              <IconButton size="small" onClick={() => setShowSecrets((p) => ({ ...p, [fieldKey]: !p[fieldKey] }))}>
-                                {showSecrets[fieldKey] ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
-                              </IconButton>
-                            )}
-                          </InputAdornment>
-                        ),
-                      },
-                    }}
-                    onBlur={(e) => {
-                      if (e.target.value !== (existing?.value_full || '')) {
-                        saveSetting(tmpl.category, tmpl.key, e.target.value, tmpl.description);
-                      }
-                    }}
-                  />
-                </Box>
-              );
-            })}
-          </CardContent>
-        </Card>
+        <Grid container spacing={3}>
+          {[
+            { category: 'coolify', title: 'Coolify', icon: '🔧', fields: [
+              { key: 'url', description: 'Coolify URL', placeholder: 'https://cp.flxo.cloud' },
+              { key: 'api_token', description: 'API Token', placeholder: '' },
+            ]},
+            { category: 'cloudflare', title: 'Cloudflare', icon: '☁️', fields: [
+              { key: 'email', description: 'Email', placeholder: 'admin@example.com' },
+              { key: 'api_key', description: 'Global API Key', placeholder: '' },
+              { key: 'zone_id_flxo', description: 'Zone ID (flxo.cloud)', placeholder: '' },
+            ]},
+            { category: 'hetzner', title: 'Hetzner Cloud', icon: '🖥️', fields: [
+              { key: 'api_token', description: 'API Token', placeholder: '' },
+            ]},
+            { category: 'ionos', title: 'IONOS', icon: '🖥️', fields: [
+              { key: 'api_token', description: 'API Token', placeholder: '' },
+            ]},
+          ].map((block) => {
+            const blockSettings = settings.filter((s) => s.category === block.category);
+            const hasValues = block.fields.some((f) => {
+              const existing = blockSettings.find((s) => s.key === f.key);
+              return existing?.value_full;
+            });
+            return (
+              <Grid size={{ xs: 12, md: 6 }} key={block.category}>
+                <Card sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                      <Typography variant="h6">{block.icon} {block.title}</Typography>
+                      {hasValues && <Chip label="Konfiguriert" size="small" color="success" />}
+                    </Box>
+                    {block.fields.map((f) => {
+                      const existing = blockSettings.find((s) => s.key === f.key);
+                      const fieldKey = `${block.category}/${f.key}`;
+                      const isSecret = f.key.includes('token') || f.key.includes('key');
+                      return (
+                        <TextField
+                          key={fieldKey}
+                          size="small" fullWidth
+                          label={f.description}
+                          placeholder={f.placeholder}
+                          defaultValue={existing?.value_full || ''}
+                          type={isSecret && !showSecrets[fieldKey] ? 'password' : 'text'}
+                          sx={{ mb: 2 }}
+                          slotProps={{
+                            input: {
+                              endAdornment: isSecret ? (
+                                <InputAdornment position="end">
+                                  <IconButton size="small" onClick={() => setShowSecrets((p) => ({ ...p, [fieldKey]: !p[fieldKey] }))}>
+                                    {showSecrets[fieldKey] ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                                  </IconButton>
+                                </InputAdornment>
+                              ) : undefined,
+                            },
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value !== (existing?.value_full || '')) {
+                              saveSetting(block.category, f.key, e.target.value, f.description);
+                            }
+                          }}
+                        />
+                      );
+                    })}
+                    <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
+                      <Button size="small" variant="outlined" onClick={() => {
+                        // Save all fields in this block
+                        block.fields.forEach((f) => {
+                          const el = document.querySelector(`input[placeholder="${f.placeholder}"]`) as HTMLInputElement;
+                          if (el?.value) saveSetting(block.category, f.key, el.value, f.description);
+                        });
+                        setToast({ open: true, message: `${block.title} gespeichert`, severity: 'success' });
+                      }}>
+                        <SaveIcon sx={{ fontSize: 16, mr: 0.5 }} /> Speichern
+                      </Button>
+                      <Button size="small" variant="contained" disabled={!hasValues} onClick={async () => {
+                        try {
+                          await api.post(`/admin/infra/test/${block.category}`);
+                          setToast({ open: true, message: `${block.title}: Verbindung OK`, severity: 'success' });
+                        } catch {
+                          setToast({ open: true, message: `${block.title}: Verbindung fehlgeschlagen`, severity: 'error' });
+                        }
+                      }}>
+                        Verbinden & Testen
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
+        </Grid>
       )}
 
       {/* ── Node Dialog ── */}
