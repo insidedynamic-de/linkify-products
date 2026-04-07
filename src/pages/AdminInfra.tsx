@@ -379,6 +379,7 @@ export default function AdminInfra() {
               { key: 'email', description: 'Email', placeholder: 'admin@example.com' },
               { key: 'api_key', description: 'Global API Key', placeholder: '' },
               { key: 'zone_id_flxo', description: 'Zone ID (flxo.cloud)', placeholder: '' },
+              { key: 'root_domain', description: 'Root Domain für Instanzen', placeholder: 'flxo.cloud' },
             ], profiles: false },
             { category: 'hetzner', title: 'Hetzner Cloud', icon: '🖥️', fields: [
               { key: 'api_token', description: 'API Token', placeholder: '' },
