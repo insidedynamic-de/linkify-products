@@ -248,6 +248,12 @@ export default function AdminInfra() {
                             fetchAll();
                           } catch { setToast({ open: true, message: 'Check failed', severity: 'error' }); }
                         }}>Status</Button>
+                        <Button size="small" onClick={async () => {
+                          try {
+                            const res = await api.post(`/admin/infra/nodes/${n.id}/firewall`);
+                            setToast({ open: true, message: `Firewall: ${res.data.added?.join(', ') || 'OK'}`, severity: 'success' });
+                          } catch { setToast({ open: true, message: 'Firewall failed', severity: 'error' }); }
+                        }}>Firewall</Button>
                         <IconButton size="small" onClick={() => { setEditNode({ ...n } as Record<string, unknown>); setNodeDialog(true); }}><EditIcon fontSize="small" /></IconButton>
                         <IconButton size="small" color="error" onClick={() => deleteNode(n.id)}><DeleteIcon fontSize="small" /></IconButton>
                       </Box>
