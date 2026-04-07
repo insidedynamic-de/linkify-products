@@ -2,12 +2,10 @@
  * @file ProductConfig — Product configuration via proxy.
  * Shows instance header + embedded Configuration page using proxied API.
  */
-import { useEffect, useState, createContext, useContext } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography, Alert, Button, Chip } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import axios from 'axios';
-import { getAccessToken, getImpersonateUser } from '../store/auth';
 import api from '../api/client';
 
 interface InstanceInfo {
@@ -20,15 +18,12 @@ interface InstanceInfo {
   max_connections: number;
 }
 
-// Context for proxied API client
-const InstanceApiContext = createContext<{ api: typeof api; instance: InstanceInfo | null }>({ api, instance: null });
-export const useInstanceApi = () => useContext(InstanceApiContext);
 
 export default function ProductConfig() {
   const { instanceId } = useParams<{ instanceId: string }>();
   const navigate = useNavigate();
   const [instance, setInstance] = useState<InstanceInfo | null>(null);
-  const [proxyApi, setProxyApi] = useState<typeof api | null>(null);
+  const [proxyPrefix, setProxyPrefix] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -36,16 +31,7 @@ export default function ProductConfig() {
     if (!instanceId) return;
     api.get(`/instance/${instanceId}`).then((res) => {
       setInstance(res.data);
-      // Create proxied axios instance
-      const proxied = axios.create({ baseURL: `/api/v1/instance/${instanceId}` });
-      proxied.interceptors.request.use((config) => {
-        const token = getAccessToken();
-        if (token) config.headers.Authorization = `Bearer ${token}`;
-        const imp = getImpersonateUser();
-        if (imp) config.headers['X-Impersonate-User-Id'] = String(imp.user_id);
-        return config;
-      });
-      setProxyApi(proxied as typeof api);
+      setProxyPrefix(`/instance/${instanceId}`);
     }).catch((err) => {
       setError(err.response?.data?.detail || 'Instance not found');
     }).finally(() => setLoading(false));
@@ -85,13 +71,13 @@ export default function ProductConfig() {
         <Chip label={instance.status} size="small" color="success" />
       </Box>
 
-      {proxyApi && <ProductDashboard instanceApi={proxyApi} instance={instance} />}
+      {proxyPrefix && <ProductDashboard prefix={proxyPrefix} instance={instance} />}
     </Box>
   );
 }
 
 /** Simple product dashboard — shows health + basic info from instance API */
-function ProductDashboard({ instanceApi, instance }: { instanceApi: ReturnType<typeof axios.create>; instance: InstanceInfo | null }) {
+function ProductDashboard({ prefix, instance }: { prefix: string; instance: InstanceInfo | null }) {
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [gateways, setGateways] = useState<unknown[]>([]);
   const [users, setUsers] = useState<unknown[]>([]);
@@ -99,15 +85,15 @@ function ProductDashboard({ instanceApi, instance }: { instanceApi: ReturnType<t
 
   useEffect(() => {
     Promise.all([
-      instanceApi.get('/health').catch(() => ({ data: null })),
-      instanceApi.get('/gateways').catch(() => ({ data: [] })),
-      instanceApi.get('/users').catch(() => ({ data: [] })),
+      api.get(`${prefix}/health`).catch(() => ({ data: null })),
+      api.get(`${prefix}/gateways`).catch(() => ({ data: [] })),
+      api.get(`${prefix}/users`).catch(() => ({ data: [] })),
     ]).then(([hRes, gRes, uRes]) => {
       setHealth(hRes.data);
       setGateways(gRes.data || []);
       setUsers(uRes.data || []);
     }).finally(() => setLoading(false));
-  }, [instanceApi]);
+  }, [prefix]);
 
   if (loading) return <CircularProgress />;
 
