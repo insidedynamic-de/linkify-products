@@ -331,14 +331,25 @@ export default function AdminInfra() {
                         }}>Firewall</Button>
                         <Box sx={{ flex: 1 }} />
                         <IconButton size="small" onClick={() => { setEditInstance({ ...i }); setInstanceDialog(true); }}><EditIcon fontSize="small" /></IconButton>
-                        <IconButton size="small" color="error" onClick={async () => {
-                          if (!confirm(`Instanz "${i.name}" löschen?`)) return;
-                          try {
-                            await api.delete(`/admin/infra/instances/${i.id}`);
-                            setToast({ open: true, message: 'Gelöscht', severity: 'success' });
-                            fetchAll();
-                          } catch { setToast({ open: true, message: 'Fehler', severity: 'error' }); }
-                        }}><DeleteIcon fontSize="small" /></IconButton>
+                        {i.status === 'deleted' ? (
+                          <Button size="small" color="error" variant="outlined" onClick={async () => {
+                            if (!confirm(`Instanz "${i.name}" ENDGÜLTIG löschen? Alle Daten werden entfernt.`)) return;
+                            try {
+                              await api.delete(`/admin/infra/instances/${i.id}?permanent=true`);
+                              setToast({ open: true, message: 'Endgültig gelöscht', severity: 'success' });
+                              fetchAll();
+                            } catch { setToast({ open: true, message: 'Fehler', severity: 'error' }); }
+                          }}>Entfernen</Button>
+                        ) : (
+                          <IconButton size="small" color="error" onClick={async () => {
+                            if (!confirm(`Instanz "${i.name}" stoppen und deaktivieren?`)) return;
+                            try {
+                              await api.delete(`/admin/infra/instances/${i.id}`);
+                              setToast({ open: true, message: 'Gestoppt', severity: 'success' });
+                              fetchAll();
+                            } catch { setToast({ open: true, message: 'Fehler', severity: 'error' }); }
+                          }}><DeleteIcon fontSize="small" /></IconButton>
+                        )}
                       </Box>
                     </CardContent>
                   </Card>
