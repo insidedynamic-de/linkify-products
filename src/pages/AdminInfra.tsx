@@ -74,6 +74,11 @@ export default function AdminInfra() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
 
+  // Hetzner profiles
+  const [hetznerProfiles, setHetznerProfiles] = useState<{ id: string; name: string; cpu: number; ram: number; disk: number; price_monthly: number; type: string }[]>([]);
+  const [hetznerLocations, setHetznerLocations] = useState<{ id: string; name: string; city: string }[]>([]);
+  const [creating, setCreating] = useState(false);
+
   // Dialogs
   const [nodeDialog, setNodeDialog] = useState(false);
   const [instanceDialog, setInstanceDialog] = useState(false);
@@ -370,13 +375,21 @@ export default function AdminInfra() {
 
       {/* ── Node Dialog ── */}
       <Dialog open={nodeDialog} onClose={() => setNodeDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editNode.id ? 'Node bearbeiten' : 'Node hinzufügen'}</DialogTitle>
+        <DialogTitle>{editNode.id ? 'Node bearbeiten' : 'Node erstellen'}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
           <TextField size="small" label="Name" value={editNode.name || ''} onChange={(e) => setEditNode({ ...editNode, name: e.target.value })} />
           <Box sx={{ display: 'flex', gap: 2 }}>
             <FormControl size="small" fullWidth>
               <InputLabel>Provider</InputLabel>
-              <Select value={editNode.provider || 'hetzner'} label="Provider" onChange={(e) => setEditNode({ ...editNode, provider: e.target.value })}>
+              <Select value={editNode.provider || 'hetzner'} label="Provider" onChange={(e) => {
+                setEditNode({ ...editNode, provider: e.target.value });
+                if (e.target.value === 'hetzner' && hetznerProfiles.length === 0) {
+                  api.get('/admin/infra/providers/hetzner/profiles').then((res) => {
+                    setHetznerProfiles(res.data.profiles || []);
+                    setHetznerLocations(res.data.locations || []);
+                  }).catch(() => {});
+                }
+              }}>
                 {providers.map((p) => <MenuItem key={p} value={p}>{p.toUpperCase()}</MenuItem>)}
               </Select>
             </FormControl>
@@ -387,29 +400,107 @@ export default function AdminInfra() {
               </Select>
             </FormControl>
           </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField size="small" label="IP" value={editNode.ip || ''} onChange={(e) => setEditNode({ ...editNode, ip: e.target.value })} fullWidth />
-            <TextField size="small" label="Region" value={editNode.region || ''} onChange={(e) => setEditNode({ ...editNode, region: e.target.value })} fullWidth />
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField size="small" label="vCPU" type="number" value={editNode.cpu || 0} onChange={(e) => setEditNode({ ...editNode, cpu: Number(e.target.value) })} />
-            <TextField size="small" label="RAM (MB)" type="number" value={editNode.ram || 0} onChange={(e) => setEditNode({ ...editNode, ram: Number(e.target.value) })} />
-            <TextField size="small" label="Disk (GB)" type="number" value={editNode.disk || 0} onChange={(e) => setEditNode({ ...editNode, disk: Number(e.target.value) })} />
-          </Box>
+
+          {/* Hetzner: profile + location select */}
+          {editNode.provider === 'hetzner' && !editNode.id && (
+            <>
+              {hetznerProfiles.length === 0 ? (
+                <Button size="small" onClick={() => {
+                  api.get('/admin/infra/providers/hetzner/profiles').then((res) => {
+                    setHetznerProfiles(res.data.profiles || []);
+                    setHetznerLocations(res.data.locations || []);
+                  }).catch(() => setToast({ open: true, message: 'Hetzner API Fehler', severity: 'error' }));
+                }}>Profile laden...</Button>
+              ) : (
+                <>
+                  <FormControl size="small">
+                    <InputLabel>Server Profil</InputLabel>
+                    <Select value={(editNode._server_type as string) || ''} label="Server Profil" onChange={(e) => {
+                      const profile = hetznerProfiles.find((p) => p.id === e.target.value);
+                      if (profile) {
+                        setEditNode({ ...editNode, _server_type: profile.id, cpu: profile.cpu, ram: profile.ram, disk: profile.disk, _price: profile.price_monthly });
+                      }
+                    }}>
+                      {hetznerProfiles.map((p) => (
+                        <MenuItem key={p.id} value={p.id}>
+                          {p.name} — {p.cpu} vCPU, {Math.round(p.ram / 1024)}GB, {p.disk}GB — €{p.price_monthly}/мес
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small">
+                    <InputLabel>Standort</InputLabel>
+                    <Select value={(editNode._location as string) || 'nbg1'} label="Standort" onChange={(e) => setEditNode({ ...editNode, _location: e.target.value, region: e.target.value })}>
+                      {hetznerLocations.map((l) => (
+                        <MenuItem key={l.id} value={l.id}>{l.name} ({l.city})</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </>
+              )}
+            </>
+          )}
+
+          {/* Manual fields (for edit or non-Hetzner) */}
+          {(editNode.id || editNode.provider !== 'hetzner') && (
+            <>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField size="small" label="IP" value={editNode.ip || ''} onChange={(e) => setEditNode({ ...editNode, ip: e.target.value })} fullWidth />
+                <TextField size="small" label="Region" value={editNode.region || ''} onChange={(e) => setEditNode({ ...editNode, region: e.target.value })} fullWidth />
+              </Box>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField size="small" label="vCPU" type="number" value={editNode.cpu || 0} onChange={(e) => setEditNode({ ...editNode, cpu: Number(e.target.value) })} />
+                <TextField size="small" label="RAM (MB)" type="number" value={editNode.ram || 0} onChange={(e) => setEditNode({ ...editNode, ram: Number(e.target.value) })} />
+                <TextField size="small" label="Disk (GB)" type="number" value={editNode.disk || 0} onChange={(e) => setEditNode({ ...editNode, disk: Number(e.target.value) })} />
+              </Box>
+            </>
+          )}
+
           <TextField size="small" label="Max Containers" type="number" value={editNode.max_containers || 30} onChange={(e) => setEditNode({ ...editNode, max_containers: Number(e.target.value) })} />
-          <TextField size="small" label="Coolify Server ID" value={editNode.coolify_server_id || ''} onChange={(e) => setEditNode({ ...editNode, coolify_server_id: e.target.value })} />
+
           {!!editNode.id && (
-            <FormControl size="small">
-              <InputLabel>Status</InputLabel>
-              <Select value={editNode.status || 'online'} label="Status" onChange={(e) => setEditNode({ ...editNode, status: e.target.value })}>
-                {statuses.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-              </Select>
-            </FormControl>
+            <>
+              <TextField size="small" label="IP" value={editNode.ip || ''} onChange={(e) => setEditNode({ ...editNode, ip: e.target.value })} />
+              <TextField size="small" label="Coolify Server ID" value={editNode.coolify_server_id || ''} onChange={(e) => setEditNode({ ...editNode, coolify_server_id: e.target.value })} />
+              <FormControl size="small">
+                <InputLabel>Status</InputLabel>
+                <Select value={editNode.status || 'online'} label="Status" onChange={(e) => setEditNode({ ...editNode, status: e.target.value })}>
+                  {statuses.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setNodeDialog(false)}>{t('button.cancel')}</Button>
-          <Button variant="contained" onClick={saveNode}>{t('button.save')}</Button>
+          {/* Hetzner: create VM via API */}
+          {editNode.provider === 'hetzner' && !editNode.id && (editNode._server_type as string) && (
+            <Button variant="contained" color="success" disabled={creating} onClick={async () => {
+              setCreating(true);
+              try {
+                const res = await api.post('/admin/infra/nodes/create-from-provider', {
+                  name: editNode.name || 'node-hetzner',
+                  server_type: editNode._server_type,
+                  location: editNode._location || 'nbg1',
+                });
+                setToast({ open: true, message: `VM erstellt! IP: ${res.data.ip}${res.data.root_password ? ` Passwort: ${res.data.root_password}` : ''}`, severity: 'success' });
+                if (res.data.root_password) {
+                  alert(`Server erstellt!\n\nIP: ${res.data.ip}\nRoot Passwort: ${res.data.root_password}\n\nBitte speichern!`);
+                }
+                setNodeDialog(false);
+                fetchAll();
+              } catch (err: unknown) {
+                const e = err as { response?: { data?: { detail?: string } } };
+                setToast({ open: true, message: e?.response?.data?.detail || 'Fehler', severity: 'error' });
+              }
+              setCreating(false);
+            }}>
+              {creating ? <CircularProgress size={16} /> : 'VM erstellen'}
+            </Button>
+          )}
+          <Button variant="contained" onClick={saveNode}>
+            {editNode.id ? t('button.save') : 'Manuell speichern'}
+          </Button>
         </DialogActions>
       </Dialog>
 
