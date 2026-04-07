@@ -805,7 +805,6 @@ export default function AdminInfra() {
             </Typography>
           )}
 
-          <TextField size="small" label="Max Connections" type="number" value={editInstance.max_connections || 0} onChange={(e) => setEditInstance({ ...editInstance, max_connections: Number(e.target.value) })} />
 
           <TextField size="small" label="Docker Image" value={editInstance.docker_image || ''}
             onChange={(e) => setEditInstance({ ...editInstance, docker_image: e.target.value })}
