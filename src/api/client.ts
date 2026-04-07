@@ -123,7 +123,9 @@ function prefixUrl(url: string): string {
       url.startsWith('/categories') || url.startsWith('/logs')) {
     return url;
   }
-  return `${_instancePrefix}${url}`;
+  const result = `${_instancePrefix}${url}`;
+  console.debug('[API Proxy]', url, '→', result);
+  return result;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
