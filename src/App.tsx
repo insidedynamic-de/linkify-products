@@ -12,6 +12,7 @@ import Register from './pages/Register';
 import SaasDashboard from './pages/SaasDashboard';
 import ProductCatalog from './pages/ProductCatalog';
 import Produkte from './pages/Produkte';
+import ProductConfig from './pages/ProductConfig';
 import AdminClients from './pages/AdminClients';
 import AdminUsers from './pages/AdminUsers';
 import AdminLicServers from './pages/AdminLicServers';
@@ -98,9 +99,12 @@ export default function App() {
             <Route path="/admin/licservers" element={<RoleGuard minRole="superadmin"><AdminLicServers /></RoleGuard>} />
             <Route path="/admin/infra" element={<RoleGuard minRole="superadmin"><AdminInfra /></RoleGuard>} />
 
-            {/* TalkHub product config (legacy pages, kept working) */}
+            {/* Product configuration via proxy */}
+            <Route path="/products/talkhub/:instanceId" element={<ProductConfig />} />
+            <Route path="/products/:product/:instanceId" element={<ProductConfig />} />
+
+            {/* Legacy TalkHub config (direct, for dev) */}
             <Route path="/configuration" element={<Configuration />} />
-            <Route path="/products/talkhub" element={<Configuration />} />
             <Route path="/integrations" element={<Integrations />} />
             <Route path="/vip" element={<VIP />} />
             <Route path="/monitoring" element={<Monitoring />} />
