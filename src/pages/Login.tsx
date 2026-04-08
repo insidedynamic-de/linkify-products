@@ -19,7 +19,7 @@ import type { ThemeMode } from '../store/preferences';
 import { colorThemes, type ColorTheme } from '../theme/colors';
 import FormDialog from '../components/FormDialog';
 import Toast from '../components/Toast';
-import { setTokens } from '../store/auth';
+import { setTokens, scheduleTokenRefresh } from '../store/auth';
 import i18n from '../i18n';
 
 interface Props {
@@ -110,6 +110,7 @@ export default function Login({ themeMode, setThemeMode, colorTheme, setColorThe
 
       // Success — save tokens and navigate
       setTokens(data.access_token, data.refresh_token);
+      scheduleTokenRefresh();
       setToast({ open: true, message: t('status.connection_ok'), severity: 'success' });
       setTimeout(() => navigate('/'), 600);
     } catch (err: unknown) {
@@ -135,6 +136,7 @@ export default function Login({ themeMode, setThemeMode, colorTheme, setColorThe
         email, password, mfa_code: mfaCode, captcha_token: '',
       });
       setTokens(res.data.access_token, res.data.refresh_token);
+      scheduleTokenRefresh();
       setToast({ open: true, message: t('status.connection_ok'), severity: 'success' });
       setTimeout(() => navigate('/'), 600);
     } catch {
@@ -157,6 +159,7 @@ export default function Login({ themeMode, setThemeMode, colorTheme, setColorThe
         email, password, mfa_code: mfaCode, captcha_token: '',
       });
       setTokens(res.data.access_token, res.data.refresh_token);
+      scheduleTokenRefresh();
       setToast({ open: true, message: 'MFA activated!', severity: 'success' });
       setTimeout(() => navigate('/'), 600);
     } catch {

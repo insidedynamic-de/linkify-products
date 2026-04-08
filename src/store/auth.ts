@@ -142,6 +142,50 @@ export function getActiveTenantId(): number | null {
   return getActiveTenant()?.id || null;
 }
 
+// ── Proactive token refresh at 80% of lifetime ──
+
+let _refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function scheduleTokenRefresh(): void {
+  if (_refreshTimer) clearTimeout(_refreshTimer);
+
+  const token = getAccessToken();
+  if (!token) return;
+
+  const payload = parseToken(token);
+  if (!payload?.exp) return;
+
+  // JWT iat is not always present, estimate from exp - typical lifetime
+  const now = Math.floor(Date.now() / 1000);
+  const expiresIn = payload.exp - now;
+  if (expiresIn <= 0) return;
+
+  // Refresh at 80% of remaining lifetime
+  const refreshAt = Math.floor(expiresIn * 0.8) * 1000;
+
+  _refreshTimer = setTimeout(async () => {
+    const refresh = getRefreshToken();
+    if (!refresh) return;
+    try {
+      const { default: axios } = await import('axios');
+      const res = await axios.post('/api/v1/auth/refresh', { refresh_token: refresh });
+      setTokens(res.data.access_token, res.data.refresh_token);
+      // Schedule next refresh
+      scheduleTokenRefresh();
+    } catch {
+      clearTokens();
+      window.location.hash = '#/login';
+    }
+  }, refreshAt);
+}
+
+export function cancelTokenRefresh(): void {
+  if (_refreshTimer) {
+    clearTimeout(_refreshTimer);
+    _refreshTimer = null;
+  }
+}
+
 export function getUserFromToken(): Pick<AuthUser, 'user_id' | 'email' | 'tenant_id' | 'tenant_type' | 'user_type'> | null {
   const token = getAccessToken();
   if (!token) return null;

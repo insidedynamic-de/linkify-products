@@ -6,6 +6,7 @@ import axios from 'axios';
 import {
   getAccessToken, getRefreshToken, setTokens, clearTokens,
   isTokenExpired, getActiveTenantId, getImpersonateUser,
+  scheduleTokenRefresh,
 } from '../store/auth';
 
 const api = axios.create({
@@ -72,6 +73,7 @@ api.interceptors.response.use(
           const newAccess = res.data.access_token;
           const newRefresh = res.data.refresh_token;
           setTokens(newAccess, newRefresh);
+          scheduleTokenRefresh();
           return newAccess;
         })
         .catch(() => {

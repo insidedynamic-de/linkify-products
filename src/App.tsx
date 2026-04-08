@@ -5,7 +5,7 @@ import { buildTheme } from './theme';
 import { loadPreferences } from './store/preferences';
 import type { ThemeMode } from './store/preferences';
 import type { ColorTheme } from './theme/colors';
-import { isAuthenticated, getEffectiveUserType } from './store/auth';
+import { isAuthenticated, getEffectiveUserType, scheduleTokenRefresh } from './store/auth';
 import MainLayout from './components/Layout/MainLayout';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -29,6 +29,8 @@ import NotFound from './pages/NotFound';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated()) return <Navigate to="/login" replace />;
+  // Start proactive token refresh on app load
+  scheduleTokenRefresh();
   return <>{children}</>;
 }
 
