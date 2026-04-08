@@ -44,6 +44,13 @@ interface VapiPhoneNumber {
   provider: string;
   credentialId: string;
   assistantId: string;
+  extension: string;
+}
+
+interface Extension {
+  extension: string;
+  description: string;
+  enabled: boolean;
 }
 
 export default function VapiIntegration() {
@@ -54,12 +61,14 @@ export default function VapiIntegration() {
   const [testing, setTesting] = useState(false);
   const [connecting, setConnecting] = useState(false);
 
-  // Assistants & phone numbers
+  // Assistants, extensions & phone numbers
   const [assistants, setAssistants] = useState<VapiAssistant[]>([]);
+  const [extensions, setExtensions] = useState<Extension[]>([]);
   const [phoneNumbers, setPhoneNumbers] = useState<VapiPhoneNumber[]>([]);
   const [newNumber, setNewNumber] = useState('');
   const [newName, setNewName] = useState('');
   const [newAssistant, setNewAssistant] = useState('');
+  const [newExtension, setNewExtension] = useState('');
   const [creating, setCreating] = useState(false);
 
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' });
@@ -71,12 +80,14 @@ export default function VapiIntegration() {
       const res = await api.get('/integrations/vapi');
       setConfig(res.data);
       if (res.data?.configured) {
-        const [aRes, pRes] = await Promise.all([
+        const [aRes, pRes, eRes] = await Promise.all([
           api.get('/integrations/vapi/assistants').catch(() => ({ data: [] })),
           api.get('/integrations/vapi/phone-numbers').catch(() => ({ data: [] })),
+          api.get('/extensions').catch(() => ({ data: [] })),
         ]);
         setAssistants(aRes.data || []);
         setPhoneNumbers(pRes.data || []);
+        setExtensions(eRes.data || []);
       }
     } catch { /* ignore */ }
   }, []);
@@ -131,10 +142,12 @@ export default function VapiIntegration() {
         number: newNumber.trim(),
         name: newName.trim(),
         assistant_id: newAssistant,
+        extension: newExtension,
       });
       setNewNumber('');
       setNewName('');
       setNewAssistant('');
+      setNewExtension('');
       setToast({ open: true, message: 'Telefonnummer erstellt', severity: 'success' });
       load();
     } catch (err: unknown) {
@@ -174,6 +187,14 @@ export default function VapiIntegration() {
   const assistantOptions = [
     { label: '\u2014', value: '' },
     ...assistants.map((a) => ({ label: a.name || a.id, value: a.id })),
+  ];
+
+  const extensionOptions = [
+    { label: '\u2014', value: '' },
+    ...extensions.filter((e) => e.enabled).map((e) => ({
+      label: e.description ? `${e.extension} — ${e.description}` : e.extension,
+      value: e.extension,
+    })),
   ];
 
   return (
@@ -275,17 +296,24 @@ export default function VapiIntegration() {
                       <TableCell>Nummer</TableCell>
                       <TableCell>Name</TableCell>
                       <TableCell>Assistent</TableCell>
+                      <TableCell>Nebenstelle</TableCell>
                       <TableCell sx={{ width: 40 }} />
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {phoneNumbers.map((n) => {
                       const asst = assistants.find((a) => a.id === n.assistantId);
+                      const ext = extensions.find((e) => e.extension === n.extension);
                       return (
                         <TableRow key={n.id}>
                           <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{n.number}</TableCell>
                           <TableCell>{n.name || '\u2014'}</TableCell>
                           <TableCell>{asst?.name || n.assistantId || '\u2014'}</TableCell>
+                          <TableCell>
+                            {n.extension ? (
+                              <Chip size="small" label={ext ? `${n.extension} — ${ext.description}` : n.extension} color="primary" variant="outlined" />
+                            ) : '\u2014'}
+                          </TableCell>
                           <TableCell>
                             <IconButton size="small" color="error" onClick={() => setDeleteId(n.id)}>
                               <DeleteIcon fontSize="small" />
@@ -310,6 +338,12 @@ export default function VapiIntegration() {
                 value={newAssistant}
                 onChange={setNewAssistant}
                 label="Assistent"
+              />
+              <SearchableSelect
+                options={extensionOptions}
+                value={newExtension}
+                onChange={setNewExtension}
+                label="Nebenstelle"
               />
               <Button
                 size="small"
