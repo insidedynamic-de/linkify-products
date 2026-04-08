@@ -7,6 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography, Alert, Button, Chip } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import api, { setInstancePrefix } from '../api/client';
+import { getImpersonateUser } from '../store/auth';
 import Configuration from './Configuration';
 
 interface InstanceInfo {
@@ -27,6 +28,7 @@ export default function ProductConfig() {
   const [proxyPrefix, setProxyPrefix] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isOwnInstance, setIsOwnInstance] = useState(true);
 
   // Clear prefix on unmount
   useEffect(() => {
@@ -40,8 +42,19 @@ export default function ProductConfig() {
       const prefix = `/instance/${instanceId}`;
       setProxyPrefix(prefix);
       setInstancePrefix(prefix);
+      // Check if this instance belongs to current tenant
+      if (!getImpersonateUser()) {
+        api.get('/my-instances').then((myRes) => {
+          const myIds = (myRes.data || []).map((i: { id: number }) => i.id);
+          setIsOwnInstance(myIds.includes(res.data.id));
+        }).catch(() => {});
+      }
     }).catch((err) => {
-      setError(err.response?.data?.detail || 'Instance not found');
+      if (err.response?.status === 403) {
+        setError('Kein Zugriff auf diese Instanz');
+      } else {
+        setError(err.response?.data?.detail || 'Instance not found');
+      }
     }).finally(() => setLoading(false));
   }, [instanceId]);
 
@@ -78,6 +91,13 @@ export default function ProductConfig() {
         <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>{instance.domain}</Typography>
         <Chip label={instance.status} size="small" color="success" />
       </Box>
+
+      {/* Warning if viewing another tenant's instance */}
+      {!isOwnInstance && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Sie sehen eine Kundeninstanz als Administrator. Änderungen wirken sich auf den Kunden aus.
+        </Alert>
+      )}
 
       {/* Configuration page — all api calls automatically prefixed via setInstancePrefix */}
       {proxyPrefix && <Configuration />}
