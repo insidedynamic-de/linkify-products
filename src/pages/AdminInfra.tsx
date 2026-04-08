@@ -304,12 +304,19 @@ export default function AdminInfra() {
                         {i.max_connections > 0 && <Chip label={`${i.max_connections} conn`} size="small" color="primary" />}
                         {i.coolify_app_id && <Chip label="Coolify" size="small" variant="outlined" sx={{ fontSize: 10 }} />}
                       </Box>
-                      {/* Ports — colored after health check */}
-                      {tmpl && tmpl.ports.length > 0 && (
+                      {/* Ports — from instance ports_config or fallback to template */}
+                      {(() => {
+                        const pc = (i as unknown as Record<string, unknown>).ports as Record<string, number | null> | undefined;
+                        const instancePorts = pc && Object.keys(pc).length > 0
+                          ? Object.entries(pc).filter(([, v]) => v != null).map(([k, v]) => ({
+                              port: String(v), protocol: k.includes('rtp') ? 'udp' : k.includes('sip') ? 'udp' : 'tcp', description: k.replace(/_/g, ' '),
+                            }))
+                          : tmpl?.ports || [];
+                        return instancePorts.length > 0 ? (
                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
-                          {tmpl.ports.map((p, idx) => {
+                          {instancePorts.map((p, idx) => {
                             const checks = portChecks[i.id];
-                            const check = checks?.find((c) => c.port === p.port && c.protocol === p.protocol);
+                            const check = checks?.find((c) => String(c.port) === String(p.port) && c.protocol === p.protocol);
                             return (
                               <Chip key={idx} label={`${p.port}/${p.protocol}`} size="small"
                                 variant={check ? 'filled' : 'outlined'}
@@ -318,10 +325,11 @@ export default function AdminInfra() {
                                 title={`${p.description}${check ? (check.open ? ' ✓ open' : ' ✗ closed') : ''}`} />
                             );
                           })}
-                          <Chip label={tmpl.cf_proxy ? 'CF Proxy' : 'DNS only'} size="small"
-                            color={tmpl.cf_proxy ? 'success' : 'warning'} sx={{ fontSize: 10, height: 20 }} />
+                          {tmpl && <Chip label={tmpl.cf_proxy ? 'CF Proxy' : 'DNS only'} size="small"
+                            color={tmpl.cf_proxy ? 'success' : 'warning'} sx={{ fontSize: 10, height: 20 }} />}
                         </Box>
-                      )}
+                        ) : null;
+                      })()}
                       {/* Actions */}
                       <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
                         <Button size="small" onClick={async () => {
