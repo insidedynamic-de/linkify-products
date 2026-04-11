@@ -17,13 +17,25 @@ import Toast from '../components/Toast';
 import SearchableSelect from '../components/SearchableSelect';
 import type { Gateway, GatewayStatus, PhoneNumberEntry } from '../api/types';
 import DeleteIcon from '@mui/icons-material/Delete';
+import PhoneIcon from '@mui/icons-material/Phone';
+import RouterIcon from '@mui/icons-material/Router';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import {
   IconButton, Divider, ToggleButton, ToggleButtonGroup,
   Table, TableBody, TableCell, TableRow,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Stepper, Step, StepLabel, Card, CardContent, CardActionArea,
 } from '@mui/material';
 
 const TRANSPORT_OPTIONS = ['udp', 'tcp', 'tls'];
-const TYPE_OPTIONS = ['provider', 'pbx', 'ai_platform', 'other'];
+const GW_TYPES = [
+  { value: 'provider', label: 'SIP Provider', icon: PhoneIcon, desc: 'Placetel, Easybell, Sipgate...' },
+  { value: 'pbx', label: 'PBX', icon: RouterIcon, desc: '3CX, Fritzbox, Asterisk...' },
+  { value: 'ai', label: 'AI Platform', icon: SmartToyIcon, desc: 'VAPI, Retell, Bland AI...' },
+];
+const WIZARD_STEPS = ['Typ', 'Verbindung', 'Rufnummern', 'Zusammenfassung'];
 
 function gwChipColor(state: string): 'success' | 'error' | 'warning' {
   if (state === 'REGED' || state === 'online') return 'success';
@@ -38,21 +50,25 @@ export default function Gateways() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState(false);
   const [editGw, setEditGw] = useState<Gateway | null>(null);
-  const defaultForm = { name: '', description: '', type: 'provider', host: '', port: 5060, username: '', password: '', register: true, transport: 'udp', auth_username: '', enabled: true, phone_number: '', phone_numbers: [] as PhoneNumberEntry[] };
+  const defaultForm = { name: '', description: '', type: 'provider', host: '', port: 5060, username: '', password: '', register: true, transport: 'udp', auth_username: '', enabled: true, phone_number: '', phone_numbers: [] as PhoneNumberEntry[], ai_provider: '', ai_account_id: null as number | null };
+  const [aiAccounts, setAiAccounts] = useState<Array<{ id: number; name: string; connected: boolean }>>([]);
   const [form, setForm] = useState(defaultForm);
   const [initialForm, setInitialForm] = useState(defaultForm);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [confirmSave, setConfirmSave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; name: string }>({ open: false, name: '' });
+  const [wizardStep, setWizardStep] = useState(0);
 
   const load = useCallback(async () => {
     try {
-      const [gwRes, statusRes] = await Promise.all([
+      const [gwRes, statusRes, aiRes] = await Promise.all([
         api.get('/gateways'),
         api.get('/gateways/status'),
+        api.get('/integrations/vapi/accounts').catch(() => ({ data: [] })),
       ]);
       setGateways(gwRes.data || []);
       setGwStatuses(statusRes.data || []);
+      setAiAccounts(aiRes.data || []);
     } catch { /* ignore */ }
   }, []);
 
@@ -63,6 +79,7 @@ export default function Gateways() {
   const openAdd = () => {
     setEditGw(null);
     setViewMode(false);
+    setWizardStep(0);
     const fresh = { ...defaultForm };
     setForm(fresh);
     setInitialForm(fresh);
@@ -73,6 +90,7 @@ export default function Gateways() {
     ...gw, description: gw.description || '', auth_username: gw.auth_username || '',
     enabled: gw.enabled !== false, phone_number: gw.phone_number || '',
     phone_numbers: gw.phone_numbers || [],
+    ai_provider: (gw as any).ai_provider || '', ai_account_id: (gw as any).ai_account_id || null,
   });
 
   const openView = (gw: Gateway) => {
@@ -87,6 +105,7 @@ export default function Gateways() {
   const openEdit = (gw: Gateway) => {
     setEditGw(gw);
     setViewMode(false);
+    setWizardStep(1);
     const gwForm = toForm(gw);
     setForm(gwForm);
     setInitialForm(gwForm);
@@ -165,116 +184,282 @@ export default function Gateways() {
         onDelete={(gw) => requestDelete(gw.name)}
       />
 
-      <FormDialog
-        open={dialogOpen}
-        readOnly={viewMode}
-        title={viewMode ? t('modal.view_gateway') : editGw ? t('modal.edit_gateway') : t('modal.add_gateway')}
-        dirty={dirty}
-        onClose={() => setDialogOpen(false)}
-        onSave={requestSave}
-      >
-        <TextField label={t('field.name')} value={form.description}
-          onChange={(e) => {
-            const raw = e.target.value;
-            const slug = raw.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9._-]/g, '');
-            setForm({ ...form, description: raw, name: editGw ? form.name : slug });
-          }}
-          disabled={viewMode} />
-        <TextField label={t('gateway.technical_name')} value={form.name}
-          disabled size="small"
-          sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: 13 } }} />
-        <SearchableSelect options={TYPE_OPTIONS} value={form.type} onChange={(v) => f('type', v)} label={t('field.type')} disabled={viewMode} />
-        <TextField label={t('field.host')} value={form.host} onChange={(e) => f('host', e.target.value)} disabled={viewMode} />
-        <TextField label={t('field.port')} type="number" value={form.port} onChange={(e) => f('port', parseInt(e.target.value) || 5060)} disabled={viewMode} />
-        <TextField label={t('auth.username')} value={form.username} onChange={(e) => f('username', e.target.value)} disabled={viewMode} />
-        <TextField label={t('auth.password')} type="password" value={form.password} onChange={(e) => f('password', e.target.value)} disabled={viewMode} />
-        <TextField label={t('gateway.auth_username')} value={form.auth_username} onChange={(e) => f('auth_username', e.target.value)} helperText={t('gateway.auth_username_hint')} disabled={viewMode} />
-        {/* Rufnummern */}
-        <Divider sx={{ my: 1 }} />
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="subtitle2">{t('gateway.phone_numbers')} ({form.phone_numbers.length})</Typography>
-          {!viewMode && (
-            <Button size="small" onClick={() => setForm({
-              ...form,
-              phone_numbers: [...form.phone_numbers, { type: 'single', number: '' }],
-            })}>{t('gateway.add_number')}</Button>
+      {/* Gateway Wizard */}
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {viewMode ? t('modal.view_gateway') : editGw ? t('modal.edit_gateway') : t('modal.add_gateway')}
+        </DialogTitle>
+        <DialogContent>
+          {/* Stepper — only for new gateway */}
+          {!editGw && !viewMode && (
+            <Stepper activeStep={wizardStep} sx={{ mb: 3 }}>
+              {WIZARD_STEPS.map((label) => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
+            </Stepper>
           )}
-        </Box>
-        {form.phone_numbers.map((entry, idx) => (
-          <Box key={idx} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mb: 1, p: 1, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <ToggleButtonGroup
-                size="small" exclusive
-                value={entry.type}
-                onChange={(_, v) => {
-                  if (!v) return;
-                  const updated = [...form.phone_numbers];
-                  updated[idx] = v === 'single'
-                    ? { type: 'single', number: entry.number || entry.stem || '' }
-                    : { type: 'block', stem: entry.stem || entry.number || '', range_start: '0', range_end: '9' };
-                  setForm({ ...form, phone_numbers: updated });
-                }}
-                disabled={viewMode}
-              >
-                <ToggleButton value="single">{t('gateway.single_number')}</ToggleButton>
-                <ToggleButton value="block">{t('gateway.number_block')}</ToggleButton>
-              </ToggleButtonGroup>
-              {entry.type === 'single' ? (
-                <TextField size="small" label={t('gateway.phone_number')} value={entry.number || ''}
-                  placeholder="+4923513682009" disabled={viewMode}
-                  onChange={(e) => {
-                    const updated = [...form.phone_numbers];
-                    updated[idx] = { ...entry, number: e.target.value };
-                    setForm({ ...form, phone_numbers: updated });
-                  }}
-                  error={!!entry.number && !/^\+[1-9]\d{6,14}$/.test(entry.number)}
-                />
+
+          {/* Step 0: Typ */}
+          {wizardStep === 0 && !editGw && !viewMode && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {GW_TYPES.map((gwt) => {
+                const Icon = gwt.icon;
+                const sel = form.type === gwt.value;
+                return (
+                  <Card key={gwt.value} variant="outlined" sx={{ border: 2, borderColor: sel ? 'primary.main' : 'divider' }}>
+                    <CardActionArea onClick={() => setForm({ ...form, type: gwt.value })}>
+                      <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Icon sx={{ fontSize: 36, color: sel ? 'primary.main' : 'text.secondary' }} />
+                        <Box>
+                          <Typography variant="subtitle1" fontWeight={600}>{gwt.label}</Typography>
+                          <Typography variant="body2" color="text.secondary">{gwt.desc}</Typography>
+                        </Box>
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                );
+              })}
+            </Box>
+          )}
+
+          {/* Step 1: Verbindung (or Edit/View mode) */}
+          {(wizardStep === 1 || editGw || viewMode) && wizardStep !== 0 && wizardStep !== 2 && wizardStep !== 3 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+
+              {form.type !== 'ai' ? (
+                <>
+                  <TextField label={t('field.name')} value={form.description}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const slug = raw.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9._-]/g, '');
+                      setForm({ ...form, description: raw, name: editGw ? form.name : slug });
+                    }}
+                    disabled={viewMode} />
+                  {form.name && (
+                    <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+                      {t('gateway.technical_name')}: {form.name}
+                    </Typography>
+                  )}
+                  <TextField label={t('field.host')} value={form.host} onChange={(e) => f('host', e.target.value)} disabled={viewMode} />
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField label={t('field.port')} type="number" value={form.port}
+                      onChange={(e) => f('port', parseInt(e.target.value) || 5060)} disabled={viewMode} sx={{ flex: 1 }} />
+                    <SearchableSelect options={TRANSPORT_OPTIONS} value={form.transport}
+                      onChange={(v) => f('transport', v)} label={t('field.transport')} disabled={viewMode} sx={{ flex: 1 }} />
+                  </Box>
+                  <TextField label={t('auth.username')} value={form.username} onChange={(e) => f('username', e.target.value)} disabled={viewMode} />
+                  <TextField label={t('auth.password')} type="password" value={form.password} onChange={(e) => f('password', e.target.value)} disabled={viewMode} />
+                  {form.type === 'pbx' && (
+                    <TextField label={t('gateway.auth_username')} value={form.auth_username}
+                      onChange={(e) => f('auth_username', e.target.value)} helperText={t('gateway.auth_username_hint')} disabled={viewMode} />
+                  )}
+                  <FormControlLabel
+                    control={<Switch checked={form.register} onChange={(e) => f('register', e.target.checked)} disabled={viewMode} />}
+                    label="Register" />
+                </>
               ) : (
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <TextField size="small" label={t('gateway.stem_number')} value={entry.stem || ''}
-                    placeholder="+492351368200" disabled={viewMode} sx={{ flex: 2 }}
-                    onChange={(e) => {
-                      const updated = [...form.phone_numbers];
-                      updated[idx] = { ...entry, stem: e.target.value };
-                      setForm({ ...form, phone_numbers: updated });
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <SearchableSelect
+                    options={[
+                      { label: 'VAPI', value: 'vapi' },
+                      { label: 'Retell', value: 'retell' },
+                      { label: 'Bland AI', value: 'bland' },
+                    ]}
+                    value={form.ai_provider}
+                    onChange={(v) => {
+                      const providerAccounts = aiAccounts.filter((a) => a.connected && v === 'vapi');
+                      if (providerAccounts.length === 1) {
+                        const acc = providerAccounts[0];
+                        const displayName = `${v.toUpperCase()} ${acc.name}`;
+                        const slug = `${v}_${acc.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9._-]/g, '')}`;
+                        setForm({ ...form, ai_provider: v, ai_account_id: acc.id, description: displayName, name: slug });
+                      } else {
+                        setForm({ ...form, ai_provider: v, ai_account_id: null, description: '', name: '' });
+                      }
                     }}
+                    label={t('gateway.ai_provider')}
+                    disabled={viewMode}
                   />
-                  <TextField size="small" label={t('gateway.range_start')} value={entry.range_start || ''}
-                    placeholder="0" disabled={viewMode} sx={{ flex: 1 }}
-                    onChange={(e) => {
-                      const updated = [...form.phone_numbers];
-                      updated[idx] = { ...entry, range_start: e.target.value };
-                      setForm({ ...form, phone_numbers: updated });
-                    }}
-                  />
-                  <TextField size="small" label={t('gateway.range_end')} value={entry.range_end || ''}
-                    placeholder="9" disabled={viewMode} sx={{ flex: 1 }}
-                    onChange={(e) => {
-                      const updated = [...form.phone_numbers];
-                      updated[idx] = { ...entry, range_end: e.target.value };
-                      setForm({ ...form, phone_numbers: updated });
-                    }}
-                  />
+                  {form.ai_provider && (() => {
+                    const filtered = aiAccounts.filter((a) => a.connected && form.ai_provider === 'vapi'); // TODO: filter by provider when retell/bland accounts exist
+                    return filtered.length > 0 ? (
+                      <SearchableSelect
+                        options={filtered.map((a) => ({ label: a.name, value: String(a.id) }))}
+                        value={form.ai_account_id ? String(form.ai_account_id) : ''}
+                        onChange={(v) => {
+                          const accId = v ? parseInt(v) : null;
+                          const acc = filtered.find((a) => a.id === accId);
+                          const accName = acc?.name || '';
+                          const providerLabel = form.ai_provider.toUpperCase();
+                          const displayName = `${providerLabel} ${accName}`;
+                          const slug = `${form.ai_provider}_${accName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9._-]/g, '')}`;
+                          setForm({ ...form, ai_account_id: accId, description: displayName, name: editGw ? form.name : slug });
+                        }}
+                        label={t('gateway.ai_account')}
+                        disabled={viewMode}
+                      />
+                    ) : (
+                      <SearchableSelect
+                        options={[]}
+                        value=""
+                        onChange={() => {}}
+                        label={t('gateway.ai_account')}
+                        disabled
+                        helperText={t('gateway.ai_no_accounts')}
+                      />
+                    );
+                  })()}
+                  {form.ai_account_id && (
+                    <>
+                      <TextField label={t('field.name')} value={form.description}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const slug = `${form.ai_provider}_${raw.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9._-]/g, '')}`;
+                          setForm({ ...form, description: raw, name: editGw ? form.name : slug });
+                        }}
+                        disabled={viewMode} />
+                      {form.name && (
+                        <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+                          {t('gateway.technical_name')}: {form.name}
+                        </Typography>
+                      )}
+                    </>
+                  )}
                 </Box>
               )}
+
+              <FormControlLabel
+                control={<Switch checked={form.enabled} onChange={(e) => f('enabled', e.target.checked)} color="success" disabled={viewMode} />}
+                label={form.enabled ? t('status.enabled') : t('status.disabled')} />
+
+              {/* Rufnummern inline for Edit/View */}
+              {(editGw || viewMode) && (
+                <>
+                  <Divider />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="subtitle2">{t('gateway.phone_numbers')} ({form.phone_numbers.length})</Typography>
+                    {!viewMode && (
+                      <Button size="small" onClick={() => setForm({ ...form, phone_numbers: [...form.phone_numbers, { type: 'single', number: '' }] })}>
+                        {t('gateway.add_number')}
+                      </Button>
+                    )}
+                  </Box>
+                  {form.phone_numbers.map((entry, idx) => (
+                    <Box key={idx} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', p: 1, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <ToggleButtonGroup size="small" exclusive value={entry.type} disabled={viewMode}
+                          onChange={(_, v) => { if (!v) return; const u = [...form.phone_numbers]; u[idx] = v === 'single' ? { type: 'single', number: entry.number || entry.stem || '' } : { type: 'block', stem: entry.stem || entry.number || '', range_start: '0', range_end: '9' }; setForm({ ...form, phone_numbers: u }); }}>
+                          <ToggleButton value="single">{t('gateway.single_number')}</ToggleButton>
+                          <ToggleButton value="block">{t('gateway.number_block')}</ToggleButton>
+                        </ToggleButtonGroup>
+                        {entry.type === 'single' ? (
+                          <TextField size="small" label={t('gateway.phone_number')} value={entry.number || ''} placeholder="+49..." disabled={viewMode}
+                            onChange={(e) => { const u = [...form.phone_numbers]; u[idx] = { ...entry, number: e.target.value }; setForm({ ...form, phone_numbers: u }); }}
+                            error={!!entry.number && !/^\+[1-9]\d{6,14}$/.test(entry.number)} />
+                        ) : (
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <TextField size="small" label={t('gateway.stem_number')} value={entry.stem || ''} placeholder="+49..." sx={{ flex: 2 }} disabled={viewMode}
+                              onChange={(e) => { const u = [...form.phone_numbers]; u[idx] = { ...entry, stem: e.target.value }; setForm({ ...form, phone_numbers: u }); }} />
+                            <TextField size="small" label={t('gateway.range_start')} value={entry.range_start || ''} placeholder="0" sx={{ flex: 1 }} disabled={viewMode}
+                              onChange={(e) => { const u = [...form.phone_numbers]; u[idx] = { ...entry, range_start: e.target.value }; setForm({ ...form, phone_numbers: u }); }} />
+                            <TextField size="small" label={t('gateway.range_end')} value={entry.range_end || ''} placeholder="9" sx={{ flex: 1 }} disabled={viewMode}
+                              onChange={(e) => { const u = [...form.phone_numbers]; u[idx] = { ...entry, range_end: e.target.value }; setForm({ ...form, phone_numbers: u }); }} />
+                          </Box>
+                        )}
+                      </Box>
+                      {!viewMode && (
+                        <IconButton size="small" color="error" onClick={() => setForm({ ...form, phone_numbers: form.phone_numbers.filter((_, i) => i !== idx) })}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                    </Box>
+                  ))}
+                  {form.phone_numbers.length === 0 && <Typography variant="body2" color="text.secondary">{t('gateway.no_numbers')}</Typography>}
+                </>
+              )}
             </Box>
-            {!viewMode && (
-              <IconButton size="small" color="error" onClick={() => {
-                const updated = form.phone_numbers.filter((_, i) => i !== idx);
-                setForm({ ...form, phone_numbers: updated });
-              }}><DeleteIcon fontSize="small" /></IconButton>
-            )}
-          </Box>
-        ))}
-        {form.phone_numbers.length === 0 && (
-          <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>{t('gateway.no_numbers')}</Typography>
-        )}
-        <SearchableSelect options={TRANSPORT_OPTIONS} value={form.transport} onChange={(v) => f('transport', v)} label={t('field.transport')} disabled={viewMode} />
-        <FormControlLabel
-          control={<Switch checked={form.enabled} onChange={(e) => f('enabled', e.target.checked)} color="success" disabled={viewMode} />}
-          label={form.enabled ? t('status.enabled') : t('status.disabled')}
-        />
-      </FormDialog>
+          )}
+
+          {/* Step 2: Rufnummern (new wizard) */}
+          {wizardStep === 2 && !editGw && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="subtitle2">{t('gateway.phone_numbers')} ({form.phone_numbers.length})</Typography>
+                <Button size="small" onClick={() => setForm({ ...form, phone_numbers: [...form.phone_numbers, { type: 'single', number: '' }] })}>
+                  {t('gateway.add_number')}
+                </Button>
+              </Box>
+              {form.phone_numbers.map((entry, idx) => (
+                <Box key={idx} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', p: 1, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <ToggleButtonGroup size="small" exclusive value={entry.type}
+                      onChange={(_, v) => { if (!v) return; const u = [...form.phone_numbers]; u[idx] = v === 'single' ? { type: 'single', number: entry.number || entry.stem || '' } : { type: 'block', stem: entry.stem || entry.number || '', range_start: '0', range_end: '9' }; setForm({ ...form, phone_numbers: u }); }}>
+                      <ToggleButton value="single">{t('gateway.single_number')}</ToggleButton>
+                      <ToggleButton value="block">{t('gateway.number_block')}</ToggleButton>
+                    </ToggleButtonGroup>
+                    {entry.type === 'single' ? (
+                      <TextField size="small" label={t('gateway.phone_number')} value={entry.number || ''} placeholder="+49..."
+                        onChange={(e) => { const u = [...form.phone_numbers]; u[idx] = { ...entry, number: e.target.value }; setForm({ ...form, phone_numbers: u }); }}
+                        error={!!entry.number && !/^\+[1-9]\d{6,14}$/.test(entry.number)} />
+                    ) : (
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <TextField size="small" label={t('gateway.stem_number')} value={entry.stem || ''} placeholder="+49..." sx={{ flex: 2 }}
+                          onChange={(e) => { const u = [...form.phone_numbers]; u[idx] = { ...entry, stem: e.target.value }; setForm({ ...form, phone_numbers: u }); }} />
+                        <TextField size="small" label={t('gateway.range_start')} value={entry.range_start || ''} placeholder="0" sx={{ flex: 1 }}
+                          onChange={(e) => { const u = [...form.phone_numbers]; u[idx] = { ...entry, range_start: e.target.value }; setForm({ ...form, phone_numbers: u }); }} />
+                        <TextField size="small" label={t('gateway.range_end')} value={entry.range_end || ''} placeholder="9" sx={{ flex: 1 }}
+                          onChange={(e) => { const u = [...form.phone_numbers]; u[idx] = { ...entry, range_end: e.target.value }; setForm({ ...form, phone_numbers: u }); }} />
+                      </Box>
+                    )}
+                  </Box>
+                  <IconButton size="small" color="error" onClick={() => setForm({ ...form, phone_numbers: form.phone_numbers.filter((_, i) => i !== idx) })}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              ))}
+              {form.phone_numbers.length === 0 && <Typography variant="body2" color="text.secondary">{t('gateway.no_numbers')}</Typography>}
+            </Box>
+          )}
+
+          {/* Step 3: Zusammenfassung */}
+          {wizardStep === 3 && !editGw && (
+            <Table size="small">
+              <TableBody>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>{t('field.type')}</TableCell><TableCell>{GW_TYPES.find((g) => g.value === form.type)?.label}</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>{t('field.name')}</TableCell><TableCell>{form.description || form.name}</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>{t('gateway.technical_name')}</TableCell><TableCell sx={{ fontFamily: 'monospace' }}>{form.name}</TableCell></TableRow>
+                {form.type !== 'ai' && (
+                  <>
+                    <TableRow><TableCell sx={{ fontWeight: 600 }}>{t('field.host')}</TableCell><TableCell>{form.host}:{form.port}</TableCell></TableRow>
+                    <TableRow><TableCell sx={{ fontWeight: 600 }}>{t('field.transport')}</TableCell><TableCell>{form.transport.toUpperCase()}</TableCell></TableRow>
+                    <TableRow><TableCell sx={{ fontWeight: 600 }}>{t('auth.username')}</TableCell><TableCell>{form.username || '—'}</TableCell></TableRow>
+                  </>
+                )}
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>{t('gateway.phone_numbers')}</TableCell><TableCell>{form.phone_numbers.length}</TableCell></TableRow>
+                <TableRow><TableCell sx={{ fontWeight: 600 }}>{t('field.status')}</TableCell><TableCell>{form.enabled ? t('status.enabled') : t('status.disabled')}</TableCell></TableRow>
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+
+        <DialogActions>
+          {wizardStep > 0 && !editGw && !viewMode && (
+            <Button startIcon={<ArrowBackIcon />} onClick={() => setWizardStep(wizardStep - 1)}>{t('button.back')}</Button>
+          )}
+          <Box sx={{ flex: 1 }} />
+          <Button onClick={() => setDialogOpen(false)}>{t('button.cancel')}</Button>
+          {wizardStep < 3 && !editGw && !viewMode && (
+            <Button variant="contained" endIcon={<ArrowForwardIcon />}
+              onClick={() => setWizardStep(wizardStep + 1)}
+              disabled={
+                (wizardStep === 0 && !form.type) ||
+                (wizardStep === 1 && form.type !== 'ai' && (!form.description || !form.host)) ||
+                (wizardStep === 1 && form.type === 'ai' && (!form.ai_provider || !form.ai_account_id || !form.description))
+              }>{t('button.next')}</Button>
+          )}
+          {(wizardStep === 3 || editGw) && !viewMode && (
+            <Button variant="contained" onClick={requestSave}>{t('button.save')}</Button>
+          )}
+        </DialogActions>
+      </Dialog>
 
       <ConfirmDialog open={confirmSave} variant="save"
         title={t('confirm.save_title')} message={t('confirm.save_message')}

@@ -494,10 +494,6 @@ export default function Users() {
           disabled={viewMode}
         />
 
-        <TextField label={t('field.caller_id')} value={form.caller_id}
-          onChange={(e) => setForm({ ...form, caller_id: e.target.value })} disabled={viewMode}
-          helperText={t('config.caller_id_desc')} />
-
         {/* Verbindungsprotokoll */}
         {form.type === 'sip' && (
           <Box>

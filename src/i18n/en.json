@@ -56,7 +56,7 @@
   "button": {
     "save": "Save", "cancel": "Cancel", "delete": "Delete", "close": "Close",
     "create": "Create",
-    "reload": "Reload", "discard": "Discard", "add": "Add", "edit": "Edit", "apply": "Apply",
+    "reload": "Reload", "discard": "Discard", "back": "Back", "next": "Next", "add": "Add", "edit": "Edit", "apply": "Apply",
     "activate": "Activate", "import": "Import", "export": "Export",
     "apply_reload": "Apply & Reload", "save_reload": "Save & Reload",
     "block": "Block", "allow": "Allow",
@@ -343,7 +343,12 @@
     "range_end": "To",
     "no_numbers": "No phone numbers configured",
     "name_auto_hint": "Auto-formatted (e.g. Alek GmbH \u2192 alek_gmbh)",
-    "technical_name": "Technical Name"
+    "technical_name": "Technical Name",
+    "ai_select_account": "Select AI account (from Integrations)",
+    "ai_config_hint": "AI connections are configured in the Integrations page",
+    "ai_provider": "AI Provider",
+    "ai_account": "Account",
+    "ai_no_accounts": "No AI account connected. Set up in Integrations first."
   },
   "route": {
     "add_route": "Add Route", "edit_route": "Edit Route", "view_route": "View Route",

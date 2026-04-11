@@ -56,7 +56,7 @@
   "button": {
     "save": "Speichern", "cancel": "Abbrechen", "delete": "L\u00f6schen", "close": "Schlie\u00dfen",
     "create": "Erstellen",
-    "reload": "Neu laden", "discard": "Verwerfen", "add": "Hinzuf\u00fcgen", "edit": "Bearbeiten", "apply": "Anwenden",
+    "reload": "Neu laden", "discard": "Verwerfen", "back": "Zur\u00fcck", "next": "Weiter", "add": "Hinzuf\u00fcgen", "edit": "Bearbeiten", "apply": "Anwenden",
     "activate": "Aktivieren", "import": "Importieren", "export": "Exportieren",
     "apply_reload": "Anwenden & Neu laden", "save_reload": "Speichern & Neu laden",
     "block": "Blockieren", "allow": "Erlauben",
@@ -343,7 +343,12 @@
     "range_end": "Bis",
     "no_numbers": "Keine Rufnummern hinterlegt",
     "name_auto_hint": "Wird automatisch formatiert (z.B. Alek GmbH \u2192 alek_gmbh)",
-    "technical_name": "Technischer Name"
+    "technical_name": "Technischer Name",
+    "ai_select_account": "AI-Account ausw\u00e4hlen (aus Integrationen)",
+    "ai_config_hint": "AI-Verbindungen werden \u00fcber die Integrationsseite konfiguriert",
+    "ai_provider": "AI-Provider",
+    "ai_account": "Account",
+    "ai_no_accounts": "Kein AI-Account verbunden. Erst unter Integrationen einrichten."
   },
   "route": {
     "add_route": "Route hinzuf\u00fcgen", "edit_route": "Route bearbeiten", "view_route": "Route anzeigen",

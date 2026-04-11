@@ -35,6 +35,8 @@ export interface Gateway {
   enabled?: boolean;
   phone_number?: string;
   phone_numbers?: PhoneNumberEntry[];
+  ai_provider?: string;
+  ai_account_id?: number | null;
 }
 
 export interface PhoneNumberEntry {
