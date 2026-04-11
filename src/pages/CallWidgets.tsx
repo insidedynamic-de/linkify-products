@@ -122,7 +122,7 @@ export default function CallWidgets() {
   };
 
   const getSnippet = (w: CallWidget) =>
-    `<script src="https://widget.linkify.cloud/call.js" data-key="${w.widget_key}" data-target="${w.target}" data-color="${w.color}" data-position="${w.position}" data-text="${w.button_text}"></script>`;
+    `<script src="https://linkify.cloud/widget/call.js" data-key="${w.widget_key}" data-target="${w.target}" data-color="${w.color}" data-position="${w.position}" data-text="${w.button_text}"></script>`;
 
   const getSnippetReact = (w: CallWidget) =>
     `import { LinkifyCallWidget } from '@linkify/call-widget';

@@ -186,7 +186,7 @@ export default function Dashboard() {
   const validExtsRef = useRef<string[]>([]);
   useEffect(() => {
     const regExts = registrations
-      .map((r) => userList.find((u) => u.username === r.user)?.extension)
+      .map((r) => userList.find((u) => u.username === r.user || r.user.startsWith(u.username + '@'))?.extension)
       .filter(Boolean) as string[];
     const aclExts = aclUserList.map((a) => a.extension);
     validExtsRef.current = [...new Set([...regExts, ...aclExts])];
@@ -679,7 +679,7 @@ export default function Dashboard() {
                     </TableHead>
                     <TableBody>
                       {registrations.map((reg, i) => {
-                        const u = userList.find((usr) => usr.username === reg.user);
+                        const u = userList.find((usr) => usr.username === reg.user || reg.user.startsWith(usr.username + '@'));
                         const userLabel = u ? `${reg.user} (${u.extension})` : reg.user;
                         return (
                           <TableRow key={i}>

@@ -15,7 +15,12 @@ import FormDialog from '../components/FormDialog';
 import CrudTable from '../components/CrudTable';
 import Toast from '../components/Toast';
 import SearchableSelect from '../components/SearchableSelect';
-import type { Gateway, GatewayStatus } from '../api/types';
+import type { Gateway, GatewayStatus, PhoneNumberEntry } from '../api/types';
+import DeleteIcon from '@mui/icons-material/Delete';
+import {
+  IconButton, Divider, ToggleButton, ToggleButtonGroup,
+  Table, TableBody, TableCell, TableRow,
+} from '@mui/material';
 
 const TRANSPORT_OPTIONS = ['udp', 'tcp', 'tls'];
 const TYPE_OPTIONS = ['provider', 'pbx', 'ai_platform', 'other'];
@@ -33,7 +38,7 @@ export default function Gateways() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState(false);
   const [editGw, setEditGw] = useState<Gateway | null>(null);
-  const defaultForm = { name: '', description: '', type: 'provider', host: '', port: 5060, username: '', password: '', register: true, transport: 'udp', auth_username: '', enabled: true, phone_number: '' };
+  const defaultForm = { name: '', description: '', type: 'provider', host: '', port: 5060, username: '', password: '', register: true, transport: 'udp', auth_username: '', enabled: true, phone_number: '', phone_numbers: [] as PhoneNumberEntry[] };
   const [form, setForm] = useState(defaultForm);
   const [initialForm, setInitialForm] = useState(defaultForm);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
@@ -64,10 +69,16 @@ export default function Gateways() {
     setDialogOpen(true);
   };
 
+  const toForm = (gw: Gateway) => ({
+    ...gw, description: gw.description || '', auth_username: gw.auth_username || '',
+    enabled: gw.enabled !== false, phone_number: gw.phone_number || '',
+    phone_numbers: gw.phone_numbers || [],
+  });
+
   const openView = (gw: Gateway) => {
     setEditGw(gw);
     setViewMode(true);
-    const gwForm = { ...gw, description: gw.description || '', auth_username: gw.auth_username || '', enabled: gw.enabled !== false, phone_number: gw.phone_number || '' };
+    const gwForm = toForm(gw);
     setForm(gwForm);
     setInitialForm(gwForm);
     setDialogOpen(true);
@@ -76,7 +87,7 @@ export default function Gateways() {
   const openEdit = (gw: Gateway) => {
     setEditGw(gw);
     setViewMode(false);
-    const gwForm = { ...gw, description: gw.description || '', auth_username: gw.auth_username || '', enabled: gw.enabled !== false, phone_number: gw.phone_number || '' };
+    const gwForm = toForm(gw);
     setForm(gwForm);
     setInitialForm(gwForm);
     setDialogOpen(true);
@@ -162,18 +173,102 @@ export default function Gateways() {
         onClose={() => setDialogOpen(false)}
         onSave={requestSave}
       >
-        <TextField label={t('field.name')} value={form.name} onChange={(e) => f('name', e.target.value)} disabled={viewMode} />
-        <TextField label={t('extension.description')} value={form.description} onChange={(e) => f('description', e.target.value)} disabled={viewMode} />
+        <TextField label={t('field.name')} value={form.description}
+          onChange={(e) => {
+            const raw = e.target.value;
+            const slug = raw.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9._-]/g, '');
+            setForm({ ...form, description: raw, name: editGw ? form.name : slug });
+          }}
+          disabled={viewMode} />
+        <TextField label={t('gateway.technical_name')} value={form.name}
+          disabled size="small"
+          sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace', fontSize: 13 } }} />
         <SearchableSelect options={TYPE_OPTIONS} value={form.type} onChange={(v) => f('type', v)} label={t('field.type')} disabled={viewMode} />
         <TextField label={t('field.host')} value={form.host} onChange={(e) => f('host', e.target.value)} disabled={viewMode} />
         <TextField label={t('field.port')} type="number" value={form.port} onChange={(e) => f('port', parseInt(e.target.value) || 5060)} disabled={viewMode} />
         <TextField label={t('auth.username')} value={form.username} onChange={(e) => f('username', e.target.value)} disabled={viewMode} />
         <TextField label={t('auth.password')} type="password" value={form.password} onChange={(e) => f('password', e.target.value)} disabled={viewMode} />
         <TextField label={t('gateway.auth_username')} value={form.auth_username} onChange={(e) => f('auth_username', e.target.value)} helperText={t('gateway.auth_username_hint')} disabled={viewMode} />
-        <TextField label={t('gateway.phone_number')} value={form.phone_number} onChange={(e) => f('phone_number', e.target.value)}
-          placeholder="+4930123456" disabled={viewMode} required
-          error={!!form.phone_number && !/^\+[1-9]\d{6,14}$/.test(form.phone_number)}
-          helperText={form.phone_number && !/^\+[1-9]\d{6,14}$/.test(form.phone_number) ? '+49...' : ''} />
+        {/* Rufnummern */}
+        <Divider sx={{ my: 1 }} />
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="subtitle2">{t('gateway.phone_numbers')} ({form.phone_numbers.length})</Typography>
+          {!viewMode && (
+            <Button size="small" onClick={() => setForm({
+              ...form,
+              phone_numbers: [...form.phone_numbers, { type: 'single', number: '' }],
+            })}>{t('gateway.add_number')}</Button>
+          )}
+        </Box>
+        {form.phone_numbers.map((entry, idx) => (
+          <Box key={idx} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mb: 1, p: 1, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <ToggleButtonGroup
+                size="small" exclusive
+                value={entry.type}
+                onChange={(_, v) => {
+                  if (!v) return;
+                  const updated = [...form.phone_numbers];
+                  updated[idx] = v === 'single'
+                    ? { type: 'single', number: entry.number || entry.stem || '' }
+                    : { type: 'block', stem: entry.stem || entry.number || '', range_start: '0', range_end: '9' };
+                  setForm({ ...form, phone_numbers: updated });
+                }}
+                disabled={viewMode}
+              >
+                <ToggleButton value="single">{t('gateway.single_number')}</ToggleButton>
+                <ToggleButton value="block">{t('gateway.number_block')}</ToggleButton>
+              </ToggleButtonGroup>
+              {entry.type === 'single' ? (
+                <TextField size="small" label={t('gateway.phone_number')} value={entry.number || ''}
+                  placeholder="+4923513682009" disabled={viewMode}
+                  onChange={(e) => {
+                    const updated = [...form.phone_numbers];
+                    updated[idx] = { ...entry, number: e.target.value };
+                    setForm({ ...form, phone_numbers: updated });
+                  }}
+                  error={!!entry.number && !/^\+[1-9]\d{6,14}$/.test(entry.number)}
+                />
+              ) : (
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <TextField size="small" label={t('gateway.stem_number')} value={entry.stem || ''}
+                    placeholder="+492351368200" disabled={viewMode} sx={{ flex: 2 }}
+                    onChange={(e) => {
+                      const updated = [...form.phone_numbers];
+                      updated[idx] = { ...entry, stem: e.target.value };
+                      setForm({ ...form, phone_numbers: updated });
+                    }}
+                  />
+                  <TextField size="small" label={t('gateway.range_start')} value={entry.range_start || ''}
+                    placeholder="0" disabled={viewMode} sx={{ flex: 1 }}
+                    onChange={(e) => {
+                      const updated = [...form.phone_numbers];
+                      updated[idx] = { ...entry, range_start: e.target.value };
+                      setForm({ ...form, phone_numbers: updated });
+                    }}
+                  />
+                  <TextField size="small" label={t('gateway.range_end')} value={entry.range_end || ''}
+                    placeholder="9" disabled={viewMode} sx={{ flex: 1 }}
+                    onChange={(e) => {
+                      const updated = [...form.phone_numbers];
+                      updated[idx] = { ...entry, range_end: e.target.value };
+                      setForm({ ...form, phone_numbers: updated });
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+            {!viewMode && (
+              <IconButton size="small" color="error" onClick={() => {
+                const updated = form.phone_numbers.filter((_, i) => i !== idx);
+                setForm({ ...form, phone_numbers: updated });
+              }}><DeleteIcon fontSize="small" /></IconButton>
+            )}
+          </Box>
+        ))}
+        {form.phone_numbers.length === 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>{t('gateway.no_numbers')}</Typography>
+        )}
         <SearchableSelect options={TRANSPORT_OPTIONS} value={form.transport} onChange={(v) => f('transport', v)} label={t('field.transport')} disabled={viewMode} />
         <FormControlLabel
           control={<Switch checked={form.enabled} onChange={(e) => f('enabled', e.target.checked)} color="success" disabled={viewMode} />}

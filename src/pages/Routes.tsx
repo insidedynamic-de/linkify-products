@@ -389,7 +389,7 @@ export default function RoutesPage() {
                   options={gwOptions} value={defaults.gateway}
                   onChange={(v) => setDefaults({ ...defaults, gateway: v })}
                   label={t('config.default_gateway')} helperText={t('config.outbound_calls_via')}
-                  allowEmpty emptyLabel="-- None --" fullWidth
+                  allowEmpty emptyLabel={t('field.none')} fullWidth
                 />
                 <TextField fullWidth label={t('field.caller_id')} value={defaults.caller_id}
                   onChange={(e) => setDefaults({ ...defaults, caller_id: e.target.value })}
@@ -406,7 +406,8 @@ export default function RoutesPage() {
                 options={extOptions}
                 value={defaults.extension}
                 onChange={(v) => setDefaults({ ...defaults, extension: v })}
-                label={t('config.default_extension')} helperText={t('config.inbound_default')} fullWidth
+                label={t('config.default_extension')} helperText={t('config.inbound_default')}
+                allowEmpty emptyLabel={t('field.none')} fullWidth
               />
             </Grid>
           </Grid>
@@ -432,7 +433,7 @@ export default function RoutesPage() {
                 render: (r) => {
                   const isReg = registrations.some((reg) => {
                     const user = users.find((u) => u.extension === r.extension);
-                    return user && reg.user === user.username;
+                    return user && (reg.user === user.username || reg.user.startsWith(user.username + '@'));
                   });
                   return (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -634,9 +635,13 @@ function VapiRoutes({ gateways, extensions, users, assistants, onToast, onReload
     }).catch(() => {});
   }, [aclUsers, assistants]);
 
-  // Gateway options (nur mit phone_number)
-  const gwWithPhone = gateways.filter((g) => g.phone_number && g.name !== 'vapi');
-  const gwOptions = gwWithPhone.map((g) => ({ label: `${g.name} (${g.phone_number})`, value: g.name }));
+  // Gateway options for AI routes (nur mit Rufnummern)
+  const gwWithPhone = gateways.filter((g) => g.name !== 'vapi' && ((g.phone_numbers && g.phone_numbers.length > 0) || g.phone_number));
+  const gwOptions = gwWithPhone.map((g) => {
+    const numCount = g.phone_numbers?.length || (g.phone_number ? 1 : 0);
+    const label = g.description ? `${g.description} (${numCount} ${numCount === 1 ? 'Nummer' : 'Nummern'})` : g.name;
+    return { label, value: g.name };
+  });
 
   // Extension options from ACL users with VAPI IPs
   const vapiAcls = aclUsers.filter((u) => {

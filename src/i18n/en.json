@@ -65,6 +65,7 @@
   },
   "status": {
     "online": "Online", "offline": "Offline", "registered": "Registered",
+    "active": "Active", "inactive": "Inactive",
     "not_registered": "Not registered", "success": "Success", "error": "Error", "copied": "Copied",
     "loading": "Loading...", "checking": "Checking...", "connected": "Connected",
     "disconnected": "Disconnected", "enabled": "Enabled", "disabled": "Disabled", "deactivated": "Deactivated",
@@ -84,7 +85,8 @@
   },
   "field": {
     "extension": "Extension", "ip_address": "IP Address", "user_agent": "User-Agent",
-    "source": "Source",
+    "source": "Source", "none": "-- None --",
+    "active": "Active", "inactive": "Inactive",
     "contact": "Contact", "pattern": "Pattern", "destination": "Destination",
     "did": "DID/Number", "domain": "Domain", "external_ip": "External IP",
     "codecs": "Codecs", "host": "Host", "port": "Port", "transport": "Transport",
@@ -329,7 +331,17 @@
   "gateway": {
     "sip_gateways": "SIP Gateways / Providers", "add_gateway": "Add Gateway",
     "auth_username": "Auth Username (optional)", "auth_username_hint": "For 3CX and some PBX systems",
-    "phone_number": "Phone Number"
+    "phone_number": "Phone Number",
+    "phone_numbers": "Phone Numbers",
+    "add_number": "+ Number",
+    "single_number": "Single",
+    "number_block": "Block",
+    "stem_number": "Stem Number",
+    "range_start": "From",
+    "range_end": "To",
+    "no_numbers": "No phone numbers configured",
+    "name_auto_hint": "Auto-formatted (e.g. Alek GmbH \u2192 alek_gmbh)",
+    "technical_name": "Technical Name"
   },
   "route": {
     "add_route": "Add Route", "edit_route": "Edit Route", "view_route": "View Route",

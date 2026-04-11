@@ -34,6 +34,15 @@ export interface Gateway {
   auth_username?: string;
   enabled?: boolean;
   phone_number?: string;
+  phone_numbers?: PhoneNumberEntry[];
+}
+
+export interface PhoneNumberEntry {
+  type: 'single' | 'block';
+  number?: string;
+  stem?: string;
+  range_start?: string;
+  range_end?: string;
 }
 
 export interface GatewayStatus {

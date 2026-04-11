@@ -65,6 +65,7 @@
   },
   "status": {
     "online": "Online", "offline": "Offline", "registered": "Registriert",
+    "active": "Aktiv", "inactive": "Inaktiv",
     "not_registered": "Nicht registriert", "success": "Erfolgreich", "error": "Fehler", "copied": "Kopiert",
     "loading": "Laden...", "checking": "Pr\u00fcfen...", "connected": "Verbunden",
     "disconnected": "Getrennt", "enabled": "Aktiviert", "disabled": "Deaktiviert", "deactivated": "Deaktiviert",
@@ -84,7 +85,8 @@
   },
   "field": {
     "extension": "Nebenstelle", "ip_address": "IP-Adresse", "user_agent": "User-Agent",
-    "source": "Quelle",
+    "source": "Quelle", "none": "-- Keine --",
+    "active": "Aktiv", "inactive": "Inaktiv",
     "contact": "Kontakt", "pattern": "Muster", "destination": "Ziel",
     "did": "DID/Rufnummer", "domain": "Domain", "external_ip": "Externe IP",
     "codecs": "Codecs", "host": "Host", "port": "Port", "transport": "Transport",
@@ -329,7 +331,17 @@
   "gateway": {
     "sip_gateways": "SIP-Gateways / Provider", "add_gateway": "Gateway hinzuf\u00fcgen",
     "auth_username": "Auth-Benutzername (optional)", "auth_username_hint": "F\u00fcr 3CX und einige PBX-Systeme",
-    "phone_number": "Telefonnummer"
+    "phone_number": "Telefonnummer",
+    "phone_numbers": "Rufnummern",
+    "add_number": "+ Rufnummer",
+    "single_number": "Einzeln",
+    "number_block": "Block",
+    "stem_number": "Stammnummer",
+    "range_start": "Von",
+    "range_end": "Bis",
+    "no_numbers": "Keine Rufnummern hinterlegt",
+    "name_auto_hint": "Wird automatisch formatiert (z.B. Alek GmbH \u2192 alek_gmbh)",
+    "technical_name": "Technischer Name"
   },
   "route": {
     "add_route": "Route hinzuf\u00fcgen", "edit_route": "Route bearbeiten", "view_route": "Route anzeigen",
