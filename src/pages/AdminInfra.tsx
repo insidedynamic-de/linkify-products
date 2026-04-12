@@ -86,6 +86,7 @@ export default function AdminInfra() {
   const [ionosLocations, setIonosLocations] = useState<{ id: string; name: string; city: string }[]>([]);
   const [ionosImages, setIonosImages] = useState<{ id: string; name: string; location: string }[]>([]);
   const [creating, setCreating] = useState(false);
+  const [vmResult, setVmResult] = useState<{ ip: string; password: string; provider: string } | null>(null);
 
   // Dialogs
   const [nodeDialog, setNodeDialog] = useState(false);
@@ -942,11 +943,12 @@ export default function AdminInfra() {
                 }
                 payload.ipv4_public = (editNode as any)._fixedIp ?? true;
                 const res = await api.post('/admin/infra/nodes/create-from-provider', payload);
-                setToast({ open: true, message: `VM erstellt! IP: ${res.data.ip || 'wird zugewiesen...'}`, severity: 'success' });
-                if (res.data.root_password) {
-                  alert(`Server erstellt!\n\nIP: ${res.data.ip}\nRoot Passwort: ${res.data.root_password}\n\nBitte speichern!`);
-                }
                 setNodeDialog(false);
+                if (res.data.root_password || res.data.ip) {
+                  setVmResult({ ip: res.data.ip || '', password: res.data.root_password || '', provider: editNode.provider || '' });
+                } else {
+                  setToast({ open: true, message: 'VM erstellt!', severity: 'success' });
+                }
                 fetchAll();
               } catch (err: unknown) {
                 const e = err as { response?: { data?: { detail?: string } } };
@@ -1137,6 +1139,43 @@ export default function AdminInfra() {
       {tab === 4 && (
         <CronjobsTab />
       )}
+
+      {/* VM Created Result Dialog */}
+      <Dialog open={!!vmResult} onClose={() => setVmResult(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>VM erstellt</DialogTitle>
+        <DialogContent>
+          <Alert severity="success" sx={{ mb: 2 }}>Server wurde erfolgreich erstellt.</Alert>
+          <Table size="small">
+            <TableBody>
+              {vmResult?.ip && (
+                <TableRow hover sx={{ cursor: 'pointer' }} onClick={() => { navigator.clipboard?.writeText(vmResult.ip); setToast({ open: true, message: 'IP kopiert', severity: 'success' }); }}>
+                  <TableCell sx={{ fontWeight: 600 }}>IP</TableCell>
+                  <TableCell sx={{ fontFamily: 'monospace' }}>{vmResult.ip}</TableCell>
+                  <TableCell sx={{ width: 40 }}><IconButton size="small"><ContentCopyIcon fontSize="small" /></IconButton></TableCell>
+                </TableRow>
+              )}
+              {vmResult?.password && (
+                <TableRow hover sx={{ cursor: 'pointer' }} onClick={() => { navigator.clipboard?.writeText(vmResult.password); setToast({ open: true, message: 'Passwort kopiert', severity: 'success' }); }}>
+                  <TableCell sx={{ fontWeight: 600 }}>Root Passwort</TableCell>
+                  <TableCell sx={{ fontFamily: 'monospace' }}>{vmResult.password}</TableCell>
+                  <TableCell sx={{ width: 40 }}><IconButton size="small"><ContentCopyIcon fontSize="small" /></IconButton></TableCell>
+                </TableRow>
+              )}
+              {vmResult?.provider && (
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>Provider</TableCell>
+                  <TableCell>{vmResult.provider.toUpperCase()}</TableCell>
+                  <TableCell />
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          <Alert severity="warning" sx={{ mt: 2 }}>Bitte Passwort jetzt speichern — es wird nicht erneut angezeigt!</Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={() => setVmResult(null)}>Schließen</Button>
+        </DialogActions>
+      </Dialog>
 
       <Toast open={toast.open} message={toast.message} severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} />
     </Box>
