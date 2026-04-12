@@ -832,13 +832,18 @@ export default function AdminInfra() {
                         </Select>
                       </FormControl>
                     )}
-                    {/* Image select — universal from API */}
+                    {/* Image select — filtered by location */}
                     {(() => {
-                      const allImages = prov === 'hetzner' ? hetznerImages : prov === 'ionos' ? ionosImages : [];
+                      const selectedLoc = (editNode as any)._location || '';
+                      const raw = prov === 'hetzner' ? hetznerImages : prov === 'ionos' ? ionosImages : [];
+                      // IONOS: filter by selected location
+                      const allImages = prov === 'ionos' && selectedLoc
+                        ? raw.filter((img) => img.location === selectedLoc || img.location.startsWith(selectedLoc))
+                        : raw;
                       return allImages.length > 0 ? (
                         <FormControl size="small">
                           <InputLabel>Image</InputLabel>
-                          <Select value={(editNode as any)._image || (prov === 'hetzner' ? 'ubuntu-22.04' : '')} label="Image" onChange={(e) => setEditNode({ ...editNode, _image: e.target.value } as any)}>
+                          <Select value={(editNode as any)._image || ''} label="Image" onChange={(e) => setEditNode({ ...editNode, _image: e.target.value } as any)}>
                             {allImages.map((img) => (
                               <MenuItem key={img.id} value={img.id}>{img.name}{img.location ? ` (${img.location})` : ''}</MenuItem>
                             ))}
