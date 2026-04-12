@@ -592,7 +592,16 @@ export default function AdminInfra() {
                                 <Chip label={tier.label} size="small" sx={{ minWidth: 70 }} color={tier.key === 'profile_premium' ? 'error' : tier.key === 'profile_high' ? 'warning' : tier.key === 'profile_mid' ? 'primary' : 'default'} />
                                 {hasApiProfiles && blockProfiles.length > 0 ? (
                                   <FormControl size="small" fullWidth>
-                                    <Select value={savedValue} displayEmpty onChange={(e) => saveSetting(block.category, tier.key, e.target.value as string, `${tier.label} profile`)}>
+                                    {(() => {
+                                      // savedValue may be JSON or plain ID
+                                      let selectedId = savedValue;
+                                      try { const parsed = JSON.parse(savedValue); selectedId = parsed.id || savedValue; } catch { /* plain id */ }
+                                      return (
+                                    <Select value={selectedId} displayEmpty onChange={(e) => {
+                                      const selected = blockProfiles.find((p) => p.id === e.target.value);
+                                      const val = selected ? JSON.stringify({ id: selected.id, name: selected.name, cpu: selected.cpu, ram: selected.ram, ram_gb: (selected as any).ram_gb || Math.round(selected.ram / 1024), disk: selected.disk, category: (selected as any).category || '', price_monthly: selected.price_monthly || 0 }) : '';
+                                      saveSetting(block.category, tier.key, val, `${tier.label} profile`);
+                                    }}>
                                       <MenuItem value="">— {tier.label} —</MenuItem>
                                       {blockProfiles.map((p) => (
                                         <MenuItem key={p.id} value={p.id}>
@@ -606,6 +615,8 @@ export default function AdminInfra() {
                                         </MenuItem>
                                       ))}
                                     </Select>
+                                      );
+                                    })()}
                                   </FormControl>
                                 ) : (
                                   <TextField size="small" fullWidth placeholder="z.B. VPS L+ (6 vCPU, 8GB)"
