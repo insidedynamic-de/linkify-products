@@ -571,7 +571,7 @@ export default function AdminInfra() {
                         <Box sx={{ mt: 1, mb: 1 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                             <Typography variant="subtitle2">Server-Profile</Typography>
-                            {hasApiProfiles && blockProfiles.length === 0 && (
+                            {hasApiProfiles && (
                               <Button size="small" onClick={() => {
                                 api.get(`/admin/infra/providers/${block.category}/profiles`).then((res) => {
                                   if (block.category === 'hetzner') {
