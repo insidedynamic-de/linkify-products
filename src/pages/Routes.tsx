@@ -227,7 +227,14 @@ export default function RoutesPage() {
     { label: '\u2014', value: '' },
     ...extensions
       .filter((e) => e.enabled !== false)
-      .map((e) => ({ label: `${e.extension} \u2014 ${e.description}`, value: e.extension })),
+      .map((e) => {
+        // Show user/acl_user name if extension has no description
+        const desc = e.description
+          || users.find((u) => u.extension === e.extension)?.username
+          || aclUsers.find((u) => u.extension === e.extension)?.username
+          || '';
+        return { label: desc ? `${e.extension} \u2014 ${desc}` : e.extension, value: e.extension };
+      }),
   ];
 
   // ── Open Add / View / Edit ──
@@ -610,7 +617,7 @@ export default function RoutesPage() {
           </RadioGroup>
         </Box>
         <SearchableSelect
-          options={extOptions}
+          options={editRoute ? extOptions.filter((o) => o.value !== '') : extOptions}
           value={form.extension}
           onChange={(v) => setForm({ ...form, extension: v })}
           label={t('field.extension')}
