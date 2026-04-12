@@ -83,6 +83,7 @@ export default function AdminInfra() {
   const [hetznerLocations, setHetznerLocations] = useState<{ id: string; name: string; city: string }[]>([]);
   const [ionosProfiles, setIonosProfiles] = useState<{ id: string; name: string; cpu: number; ram: number; disk: number; price_monthly: number }[]>([]);
   const [ionosLocations, setIonosLocations] = useState<{ id: string; name: string; city: string }[]>([]);
+  const [ionosImages, setIonosImages] = useState<{ id: string; name: string; location: string }[]>([]);
   const [creating, setCreating] = useState(false);
 
   // Dialogs
@@ -580,6 +581,7 @@ export default function AdminInfra() {
                                   } else if (block.category === 'ionos') {
                                     setIonosProfiles(res.data.profiles || []);
                                     setIonosLocations(res.data.locations || []);
+                                    setIonosImages(res.data.images || []);
                                   }
                                 }).catch(() => setToast({ open: true, message: 'API Fehler', severity: 'error' }));
                               }}>Profile laden</Button>
@@ -840,6 +842,16 @@ export default function AdminInfra() {
                         <Select value={(editNode._location as string) || ''} label="Standort" onChange={(e) => setEditNode({ ...editNode, _location: e.target.value, region: e.target.value })}>
                           {locs.map((l) => (
                             <MenuItem key={l.id} value={l.id}>{l.name} ({l.city})</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    )}
+                    {editNode.provider === 'ionos' && ionosImages.length > 0 && (
+                      <FormControl size="small">
+                        <InputLabel>Image</InputLabel>
+                        <Select value={(editNode as any)._image || ''} label="Image" onChange={(e) => setEditNode({ ...editNode, _image: e.target.value } as any)}>
+                          {ionosImages.map((img) => (
+                            <MenuItem key={img.id} value={img.id}>{img.name} ({img.location})</MenuItem>
                           ))}
                         </Select>
                       </FormControl>
