@@ -846,10 +846,10 @@ export default function AdminInfra() {
                         </FormControl>
                       ) : null;
                     })()}
-                    {/* Fixed IP option */}
+                    {/* Fixed IP option — same for all providers */}
                     <FormControlLabel
-                      control={<Checkbox checked={(editNode as any)._fixedIp ?? true} onChange={(e) => setEditNode({ ...editNode, _fixedIp: e.target.checked } as any)} />}
-                      label={prov === 'ionos' ? 'Fixed IP (+5,00 €/mo)' : 'Öffentliche IPv4'}
+                      control={<Checkbox checked={(editNode as any)._fixedIp ?? (prov === 'hetzner')} onChange={(e) => setEditNode({ ...editNode, _fixedIp: e.target.checked } as any)} />}
+                      label={prov === 'ionos' ? 'Fixed IP (+5,00 €/mo)' : 'Fixed IPv4 (0,00 €/mo)'}
                     />
                   </>
                 );
@@ -882,13 +882,16 @@ export default function AdminInfra() {
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {editNode.provider?.toUpperCase()} · {(editNode as any)._location || editNode.region || '—'}
-                  {(editNode as any)._image ? ` · ${ionosImages.find((i) => i.id === (editNode as any)._image)?.name || 'Ubuntu'}` : ''}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  OS: {(editNode as any)._image ? ([...hetznerImages, ...ionosImages].find((i) => i.id === (editNode as any)._image)?.name || (editNode as any)._image) : 'Ubuntu 22.04'}
+                  {(editNode as any)._fixedIp ? ' · Fixed IP' : ' · DHCP'}
                 </Typography>
                 {(() => {
                   const prov = editNode.provider || '';
                   const profs = prov === 'hetzner' ? hetznerProfiles : prov === 'ionos' ? ionosProfiles : [];
                   const sel = profs.find((p) => p.id === (editNode as any)._server_type);
-                  const fixedIpExtra = (editNode as any)._fixedIp ? 5 : 0;
+                  const fixedIpExtra = prov === 'ionos' && (editNode as any)._fixedIp ? 5 : 0;
                   const totalPrice = sel?.price_monthly ? sel.price_monthly + fixedIpExtra : fixedIpExtra;
                   return totalPrice ? (
                     <Typography variant="h6" color="primary" sx={{ mt: 0.5 }}>
