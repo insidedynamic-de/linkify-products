@@ -714,7 +714,7 @@ export default function Dashboard() {
           <Card>
             <CardContent sx={{ px: 4, py: 3 }}>
               <Typography variant="h6" sx={{ mb: 2 }}>{t('dashboard.user_registrations')}</Typography>
-              {registrations.length === 0 ? (
+              {registrations.length === 0 && aclUserList.length === 0 ? (
                 <Typography color="text.secondary">{t('dashboard.no_users_registered')}</Typography>
               ) : (
                 <TableContainer>
@@ -732,12 +732,30 @@ export default function Dashboard() {
                         const userLabel = u ? `${reg.user} (${u.extension})` : reg.user;
                         return (
                           <TableRow key={i}>
-                            <TableCell>{userLabel}</TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main', flexShrink: 0 }} />
+                                {userLabel}
+                              </Box>
+                            </TableCell>
                             <TableCell>{reg.ip}:{reg.port}</TableCell>
                             <TableCell>{reg.user_agent}</TableCell>
                           </TableRow>
                         );
                       })}
+                      {aclUserList.map((acl) => (
+                        <TableRow key={`acl-${acl.username}`}>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'info.main', flexShrink: 0 }} />
+                              {acl.username} ({acl.extension})
+                              <Chip size="small" label="ACL" variant="outlined" color="info" sx={{ height: 18, fontSize: 10 }} />
+                            </Box>
+                          </TableCell>
+                          <TableCell>{acl.ip}</TableCell>
+                          <TableCell>—</TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </TableContainer>

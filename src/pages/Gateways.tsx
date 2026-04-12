@@ -62,6 +62,8 @@ export default function Gateways() {
   const [aiAssistants, setAiAssistants] = useState<Array<{ id: string; name: string }>>([]);
   const [aiSetup, setAiSetup] = useState({ assistant_id: '', extension: '', newExtNumber: '' });
   const [aiExtensions, setAiExtensions] = useState<Array<{ extension: string; description: string }>>([]);
+  const [vapiPhoneNumbers, setVapiPhoneNumbers] = useState<Array<{ id: string; number: string; name: string; assistantId: string }>>([]);
+  const [vapiNumbersLoading, setVapiNumbersLoading] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -136,8 +138,9 @@ export default function Gateways() {
       setDialogOpen(false);
       setToast({ open: true, message: t('status.success'), severity: 'success' });
       load();
-    } catch {
-      setToast({ open: true, message: t('status.error'), severity: 'error' });
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('status.error');
+      setToast({ open: true, message: detail, severity: 'error' });
     }
   };
 
@@ -407,8 +410,53 @@ export default function Gateways() {
           {/* Step 2: Rufnummern (new wizard) */}
           {wizardStep === 2 && !editGw && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+
+              {/* AI type: show existing VAPI phone numbers to pick from */}
+              {form.type === 'ai' && vapiPhoneNumbers.length > 0 && (
+                <>
+                  <Typography variant="subtitle2">{t('gateway.existing_vapi_numbers', 'Vorhandene Rufnummern')}</Typography>
+                  {vapiPhoneNumbers.map((pn) => {
+                    const alreadyAdded = form.phone_numbers.some((e) => e.number === pn.number);
+                    const usedByOther = gateways.some((g) =>
+                      g.name !== form.name && g.phone_numbers?.some((e: PhoneNumberEntry) => e.number === pn.number)
+                    );
+                    return (
+                      <Box key={pn.id} sx={{
+                        display: 'flex', alignItems: 'center', gap: 1, p: 1,
+                        border: 1, borderColor: alreadyAdded ? 'success.main' : 'divider', borderRadius: 1,
+                        opacity: usedByOther ? 0.5 : 1,
+                      }}>
+                        <PhoneIcon fontSize="small" color={alreadyAdded ? 'success' : 'action'} />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" fontWeight={600}>{pn.number}</Typography>
+                          {pn.name && <Typography variant="caption" color="text.secondary">{pn.name}</Typography>}
+                        </Box>
+                        {usedByOther ? (
+                          <Chip size="small" label={t('gateway.already_used', 'Bereits zugewiesen')} color="warning" />
+                        ) : alreadyAdded ? (
+                          <Button size="small" color="error" onClick={() => setForm({
+                            ...form, phone_numbers: form.phone_numbers.filter((e) => e.number !== pn.number)
+                          })}>{t('button.remove', 'Entfernen')}</Button>
+                        ) : (
+                          <Button size="small" variant="outlined" onClick={() => setForm({
+                            ...form, phone_numbers: [...form.phone_numbers, { type: 'single', number: pn.number }]
+                          })}>{t('button.add', 'Hinzufügen')}</Button>
+                        )}
+                      </Box>
+                    );
+                  })}
+                  <Divider />
+                </>
+              )}
+              {form.type === 'ai' && vapiNumbersLoading && (
+                <Typography variant="body2" color="text.secondary">{t('status.loading', 'Laden...')}</Typography>
+              )}
+
+              {/* Manual number input */}
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="subtitle2">{t('gateway.phone_numbers')} ({form.phone_numbers.length})</Typography>
+                <Typography variant="subtitle2">
+                  {form.type === 'ai' ? t('gateway.new_number', 'Neue Rufnummer') : t('gateway.phone_numbers')} ({form.phone_numbers.length})
+                </Typography>
                 <Button size="small" onClick={() => setForm({ ...form, phone_numbers: [...form.phone_numbers, { type: 'single', number: '' }] })}>
                   {t('gateway.add_number')}
                 </Button>
@@ -416,14 +464,16 @@ export default function Gateways() {
               {form.phone_numbers.map((entry, idx) => (
                 <Box key={idx} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', p: 1, border: 1, borderColor: 'divider', borderRadius: 1 }}>
                   <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <ToggleButtonGroup size="small" exclusive value={entry.type}
-                      onChange={(_, v) => { if (!v) return; const u = [...form.phone_numbers]; u[idx] = v === 'single' ? { type: 'single', number: entry.number || entry.stem || '' } : { type: 'block', stem: entry.stem || entry.number || '', range_start: '0', range_end: '9' }; setForm({ ...form, phone_numbers: u }); }}>
-                      <ToggleButton value="single">{t('gateway.single_number')}</ToggleButton>
-                      <ToggleButton value="block">{t('gateway.number_block')}</ToggleButton>
-                    </ToggleButtonGroup>
-                    {entry.type === 'single' ? (
+                    {form.type !== 'ai' && (
+                      <ToggleButtonGroup size="small" exclusive value={entry.type}
+                        onChange={(_, v) => { if (!v) return; const u = [...form.phone_numbers]; u[idx] = v === 'single' ? { type: 'single', number: entry.number || entry.stem || '' } : { type: 'block', stem: entry.stem || entry.number || '', range_start: '0', range_end: '9' }; setForm({ ...form, phone_numbers: u }); }}>
+                        <ToggleButton value="single">{t('gateway.single_number')}</ToggleButton>
+                        <ToggleButton value="block">{t('gateway.number_block')}</ToggleButton>
+                      </ToggleButtonGroup>
+                    )}
+                    {entry.type === 'single' || form.type === 'ai' ? (
                       <TextField size="small" label={t('gateway.phone_number')} value={entry.number || ''} placeholder="+49..."
-                        onChange={(e) => { const u = [...form.phone_numbers]; u[idx] = { ...entry, number: e.target.value }; setForm({ ...form, phone_numbers: u }); }}
+                        onChange={(e) => { const u = [...form.phone_numbers]; u[idx] = { ...entry, type: 'single', number: e.target.value }; setForm({ ...form, phone_numbers: u }); }}
                         error={!!entry.number && !/^\+[1-9]\d{6,14}$/.test(entry.number)} />
                     ) : (
                       <Box sx={{ display: 'flex', gap: 1 }}>
@@ -535,7 +585,25 @@ export default function Gateways() {
           <Button onClick={() => setDialogOpen(false)}>{t('button.cancel')}</Button>
           {wizardStep < (form.type === 'ai' ? 4 : 3) && !editGw && !viewMode && (
             <Button variant="contained" endIcon={<ArrowForwardIcon />}
-              onClick={() => setWizardStep(wizardStep + 1)}
+              onClick={async () => {
+                // Load VAPI phone numbers when entering Step 2 for AI type
+                if (wizardStep === 1 && form.type === 'ai' && form.ai_account_id) {
+                  setVapiNumbersLoading(true);
+                  try {
+                    const res = await api.get(`/integrations/vapi/accounts/${form.ai_account_id}/phone-numbers`);
+                    setVapiPhoneNumbers(res.data || []);
+                  } catch { setVapiPhoneNumbers([]); }
+                  setVapiNumbersLoading(false);
+                }
+                // Load assistants when entering Step 3 for AI type
+                if (wizardStep === 2 && form.type === 'ai' && form.ai_account_id && aiAssistants.length === 0) {
+                  try {
+                    const res = await api.get(`/integrations/vapi/accounts/${form.ai_account_id}/assistants`);
+                    setAiAssistants(res.data || []);
+                  } catch { /* ignore */ }
+                }
+                setWizardStep(wizardStep + 1);
+              }}
               disabled={
                 (wizardStep === 0 && !form.type) ||
                 (wizardStep === 1 && form.type !== 'ai' && (!form.description || !form.host)) ||

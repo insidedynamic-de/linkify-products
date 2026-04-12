@@ -496,17 +496,20 @@ export default function RoutesPage() {
                 id: 'user',
                 header: t('field.user'),
                 render: (r) => {
-                  const isReg = registrations.some((reg) => {
+                  const isAcl = aclUsers.some((u) => u.extension === r.extension);
+                  const isReg = !isAcl && registrations.some((reg) => {
                     const user = users.find((u) => u.extension === r.extension);
                     return user && (reg.user === user.username || reg.user.startsWith(user.username + '@'));
                   });
+                  const statusColor = isAcl ? 'info.main' : isReg ? 'success.main' : 'error.main';
+                  const statusLabel = isAcl ? 'ACL' : isReg ? t('status.registered') : t('status.not_registered');
                   return (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Tooltip title={isReg ? t('status.registered') : t('status.not_registered')}>
+                      <Tooltip title={statusLabel}>
                         <Box
                           sx={{
                             width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-                            bgcolor: isReg ? 'success.main' : 'error.main',
+                            bgcolor: statusColor,
                           }}
                         />
                       </Tooltip>
