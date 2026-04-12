@@ -150,13 +150,22 @@ export default function Gateways() {
     }
   };
 
-  const requestDelete = (name: string) => setConfirmDelete({ open: true, name });
+  const [deleteDeps, setDeleteDeps] = useState<Array<{ type: string; label: string }>>([]);
+
+  const requestDelete = async (name: string) => {
+    try {
+      const res = await api.get(`/gateways/${name}/deps`);
+      setDeleteDeps(res.data?.items || []);
+    } catch { setDeleteDeps([]); }
+    setConfirmDelete({ open: true, name });
+  };
 
   const doDelete = async () => {
     const name = confirmDelete.name;
     setConfirmDelete({ open: false, name: '' });
+    setDeleteDeps([]);
     try {
-      await api.delete(`/gateways/${name}`);
+      await api.delete(`/gateways/${name}?cleanup=true`);
       setToast({ open: true, message: t('status.success'), severity: 'success' });
       load();
     } catch {
@@ -530,7 +539,9 @@ export default function Gateways() {
               disabled={
                 (wizardStep === 0 && !form.type) ||
                 (wizardStep === 1 && form.type !== 'ai' && (!form.description || !form.host)) ||
-                (wizardStep === 1 && form.type === 'ai' && (!form.ai_provider || !form.ai_account_id || !form.description))
+                (wizardStep === 1 && form.type === 'ai' && (!form.ai_provider || !form.ai_account_id || !form.description)) ||
+                (wizardStep === 2 && form.phone_numbers.length === 0) ||
+                (wizardStep === 3 && form.type === 'ai' && (!aiSetup.extension || aiSetup.extension === '__new__' && !aiSetup.newExtNumber))
               }>{t('button.next')}</Button>
           )}
           {(wizardStep === (form.type === 'ai' ? 4 : 3) || editGw) && !viewMode && (
@@ -546,9 +557,11 @@ export default function Gateways() {
 
       <ConfirmDialog open={confirmDelete.open} variant="delete"
         title={t('confirm.delete_title')}
-        message={t('confirm.delete_message', { name: confirmDelete.name })}
+        message={deleteDeps.length > 0
+          ? `${t('confirm.delete_message', { name: confirmDelete.name })}\n\n${t('gateway.delete_deps_hint')}:\n${deleteDeps.map((d) => `• ${d.label}`).join('\n')}`
+          : t('confirm.delete_message', { name: confirmDelete.name })}
         confirmLabel={t('button.delete')} cancelLabel={t('button.cancel')}
-        onConfirm={doDelete} onCancel={() => setConfirmDelete({ open: false, name: '' })} />
+        onConfirm={doDelete} onCancel={() => { setConfirmDelete({ open: false, name: '' }); setDeleteDeps([]); }} />
 
       <Toast open={toast.open} message={toast.message} severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} />
     </Box>

@@ -468,7 +468,7 @@ export default function RoutesPage() {
             </Button>
           </Box>
           <CrudTable<ExtensionRoute>
-            rows={displayRoutes.filter((r) => !vapiExtensions.has(r.extension) && !(r.description || '').includes('VAPI OUT'))}
+            rows={displayRoutes}
             getKey={(r, i) => `${r.direction}-${r.extension}-${r.gateway}-${i}`}
             columns={[
               {
@@ -611,18 +611,6 @@ export default function RoutesPage() {
         message={t('confirm.delete_message', { name: confirmDelete.name })}
         confirmLabel={t('button.delete')} cancelLabel={t('button.cancel')}
         onConfirm={handleConfirmDelete} onCancel={() => setConfirmDelete({ open: false, name: '', action: null })} />
-
-      {/* VAPI Routes */}
-      {hasVapi && vapiConnected && (
-        <VapiRoutes
-          gateways={gateways}
-          extensions={extensions}
-          users={users}
-          assistants={vapiAssistants}
-          onToast={(msg: string, ok: boolean) => setToast({ open: true, message: msg, severity: ok ? 'success' : 'error' })}
-          onReload={load}
-        />
-      )}
 
       <Toast open={toast.open} message={toast.message} severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} />
     </Box>
