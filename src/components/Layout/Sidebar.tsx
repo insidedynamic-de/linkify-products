@@ -48,6 +48,7 @@ export const DRAWER_WIDTH_COLLAPSED = 64;
 
 const baseNavItems = [
   { key: '/',              icon: <DashboardIcon />,    label: 'nav.dashboard',    requiresHub: false },
+  { key: '/instanzen',     icon: <DnsIcon />,          label: 'nav.instances',    requiresHub: false },
   { key: '/produkte',      icon: <ShoppingCartIcon />, label: 'nav.catalog',      requiresHub: false },
   { key: '/configuration', icon: <TuneIcon />,         label: 'nav.config',       requiresHub: true, dynamic: true },
   { key: '/logs',          icon: <TerminalIcon />,     label: 'nav.logs',         requiresHub: false, requiresLogs: true },

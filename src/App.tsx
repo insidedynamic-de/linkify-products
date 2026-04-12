@@ -90,6 +90,7 @@ export default function App() {
             </ProtectedRoute>
           }>
             <Route path="/" element={<SaasDashboard />} />
+            <Route path="/instanzen" element={<SaasDashboard />} />
             <Route path="/catalog" element={<ProductCatalog />} />
             <Route path="/produkte" element={<Produkte />} />
 

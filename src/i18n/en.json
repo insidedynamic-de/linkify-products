@@ -10,6 +10,7 @@
     "license_billing": "License / Billing",
     "billing": "Billing",
     "catalog": "Products",
+    "instances": "Instances",
     "admin_clients": "Clients",
     "admin_users": "Users",
     "integrations": "Integrations",
