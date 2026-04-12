@@ -140,10 +140,19 @@ export default function RoutesPage() {
     for (const ib of routes.inbound || []) {
       inboundByExt.set(ib.extension, ib);
     }
+    // Helper: find extension for a username (SIP or ACL)
+    const findExtForUser = (username: string): string => {
+      const sipUser = users.find((u) => u.username === username);
+      if (sipUser) return sipUser.extension;
+      const aclU = aclUsers.find((u) => u.username === username);
+      if (aclU) return aclU.extension;
+      return '';
+    };
+
     const outboundByExt = new Map<string, typeof routes.user_routes[0]>();
     for (const ur of routes.user_routes || []) {
-      const user = users.find((u) => u.username === ur.username);
-      if (user) outboundByExt.set(user.extension, ur);
+      const ext = findExtForUser(ur.username);
+      if (ext) outboundByExt.set(ext, ur);
     }
 
     // Merge: if same extension has both inbound + outbound with same gateway → "both"
@@ -151,14 +160,15 @@ export default function RoutesPage() {
 
     for (const ib of routes.inbound || []) {
       const ext = extensions.find((e) => e.extension === ib.extension);
-      const user = users.find((u) => u.extension === ib.extension);
+      const username = users.find((u) => u.extension === ib.extension)?.username
+        || aclUsers.find((u) => u.extension === ib.extension)?.username || '';
       const ob = outboundByExt.get(ib.extension);
 
       if (ob && ob.gateway === ib.gateway) {
         // Bidirectional
         rows.push({
           extension: ib.extension,
-          username: user?.username || ob.username,
+          username: username || ob.username,
           gateway: ib.gateway,
           description: ib.description || ob.description || '',
           extDescription: ext?.description || '',
@@ -169,7 +179,7 @@ export default function RoutesPage() {
       } else {
         rows.push({
           extension: ib.extension,
-          username: user?.username || '',
+          username,
           gateway: ib.gateway,
           description: ib.description || '',
           extDescription: ext?.description || '',
@@ -182,12 +192,11 @@ export default function RoutesPage() {
 
     // Outbound routes not merged
     for (const ur of routes.user_routes || []) {
-      const user = users.find((u) => u.username === ur.username);
-      const userExt = user?.extension || '';
+      const userExt = findExtForUser(ur.username);
       if (processed.has(userExt)) continue; // already merged as "both"
-      const ext = user ? extensions.find((e) => e.extension === user.extension) : null;
+      const ext = extensions.find((e) => e.extension === userExt);
       rows.push({
-        extension: userExt,
+        extension: userExt || ur.username,
         username: ur.username,
         gateway: ur.gateway,
         description: ur.description || '',
@@ -202,17 +211,18 @@ export default function RoutesPage() {
 
   // Count only enabled routes for license limit check
   // VAPI bundle (all routes pointing to same extension as vapi gateway) counts as 1
-  const vapiExtensions = new Set(
-    extRoutes.filter((r) => r.enabled && r.gateway === 'vapi').map((r) => r.extension)
-  );
-  const nonVapiRoutes = extRoutes.filter((r) => r.enabled && r.gateway !== 'vapi'
-    && !vapiExtensions.has(r.extension) && !(r.description || '').includes('VAPI OUT'));
-  const enabledCount = nonVapiRoutes.length + vapiExtensions.size;
+  // Each unique extension with enabled route = 1 connection (bidirectional counts once)
+  const enabledExtensions = new Set(extRoutes.filter((r) => r.enabled).map((r) => r.extension));
+  const enabledCount = enabledExtensions.size;
 
-  const gwOptions = gateways.map((g) => ({
-    label: g.description ? `${g.name} \u2014 ${g.description}` : g.name,
-    value: g.name,
-  }));
+  const gwOptions = gateways.map((g) => {
+    const firstPhone = g.phone_numbers?.[0];
+    const phoneNum = firstPhone?.number || g.phone_number || '';
+    const label = phoneNum
+      ? `${phoneNum} \u2014 ${g.description || g.name}`
+      : g.description ? `${g.description} (${g.name})` : g.name;
+    return { label, value: g.name };
+  });
   const extOptions = [
     { label: '\u2014', value: '' },
     ...extensions
@@ -511,9 +521,25 @@ export default function RoutesPage() {
                 header: t('field.gateway'),
                 render: (r) => {
                   const gw = gateways.find((g) => g.name === r.gateway);
-                  return gw?.description ? `${r.gateway} (${gw.description})` : r.gateway;
+                  const firstPhone = gw?.phone_numbers?.[0];
+                  const phoneNum = firstPhone?.number || gw?.phone_number || '';
+                  return (
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>
+                        {phoneNum || gw?.description || r.gateway}
+                      </Typography>
+                      {phoneNum && (
+                        <Typography variant="caption" color="text.secondary">
+                          {gw?.description || r.gateway}
+                        </Typography>
+                      )}
+                    </Box>
+                  );
                 },
-                searchText: (r) => r.gateway,
+                searchText: (r) => {
+                  const gw = gateways.find((g) => g.name === r.gateway);
+                  return `${r.gateway} ${gw?.description || ''} ${gw?.phone_number || ''}`;
+                },
               },
               {
                 id: 'description',
