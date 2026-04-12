@@ -530,11 +530,12 @@ export default function AdminInfra() {
                       const isSecret = f.key.includes('token') || f.key.includes('key') || f.key.includes('password') || (f as any).secret;
                       return (
                         <TextField
-                          key={fieldKey}
+                          key={`${fieldKey}:${existing?.id || 0}`}
                           size="small" fullWidth
                           label={f.description}
                           placeholder={f.placeholder}
-                          defaultValue={existing?.value_full || ''}
+                          defaultValue={isSecret ? '' : (existing?.value_full || '')}
+                          helperText={isSecret && existing?.value_full ? '••••••••' : undefined}
                           type={isSecret && !showSecrets[fieldKey] ? 'password' : 'text'}
                           sx={{ mb: 2 }}
                           slotProps={{
@@ -549,7 +550,7 @@ export default function AdminInfra() {
                             },
                           }}
                           onBlur={(e) => {
-                            if (e.target.value !== (existing?.value_full || '')) {
+                            if (e.target.value && e.target.value !== (existing?.value_full || '')) {
                               saveSetting(block.category, f.key, e.target.value, f.description);
                             }
                           }}
