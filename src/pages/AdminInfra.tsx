@@ -596,7 +596,7 @@ export default function AdminInfra() {
                                       <MenuItem value="">— {tier.label} —</MenuItem>
                                       {blockProfiles.map((p) => (
                                         <MenuItem key={p.id} value={p.id}>
-                                          {p.name}
+                                          {p.name}{p.price_monthly ? ` — €${p.price_monthly}/mo` : ''}
                                         </MenuItem>
                                       ))}
                                     </Select>
