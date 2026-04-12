@@ -797,44 +797,28 @@ export default function AdminInfra() {
                     }).catch(() => setToast({ open: true, message: `${prov.toUpperCase()} API Fehler`, severity: 'error' }));
                   }}>Profile laden...</Button>
                 );
-                // Hetzner: use saved tier profiles
-                const hasTiers = settings.some((s) => s.category === prov && s.key.startsWith('profile_'));
                 return (
                   <>
                     <FormControl size="small">
                       <InputLabel>Profil</InputLabel>
-                      {hasTiers ? (
-                        <Select value={(editNode._profile as string) || ''} label="Profil" onChange={(e) => {
-                          const tier = e.target.value as string;
-                          const savedType = settings.find((s) => s.category === prov && s.key === tier)?.value_full || '';
-                          const profile = profs.find((p) => p.id === savedType);
-                          setEditNode({ ...editNode, _profile: tier, _server_type: savedType,
-                            ...(profile ? { cpu: profile.cpu, ram: profile.ram, disk: profile.disk } : {}),
-                          });
-                        }}>
-                          {['profile_low', 'profile_mid', 'profile_high', 'profile_premium'].filter((tier) =>
-                            settings.some((s) => s.category === prov && s.key === tier && s.value_full)
-                          ).map((tier) => {
-                            const saved = settings.find((s) => s.category === prov && s.key === tier);
-                            const label = tier === 'profile_low' ? 'Low' : tier === 'profile_mid' ? 'Mittel' : tier === 'profile_high' ? 'Hoch' : 'Premium';
-                            const profile = profs.find((p) => p.id === saved?.value_full);
-                            return <MenuItem key={tier} value={tier}>
-                              {label}: {saved?.value_full} {profile ? `(${profile.cpu} vCPU, ${Math.round(profile.ram / 1024)}GB)` : ''}
-                            </MenuItem>;
-                          })}
-                        </Select>
-                      ) : (
-                        <Select value={(editNode._server_type as string) || ''} label="Profil" onChange={(e) => {
-                          const profile = profs.find((p) => p.id === e.target.value);
-                          setEditNode({ ...editNode, _server_type: e.target.value,
-                            ...(profile ? { cpu: profile.cpu, ram: profile.ram, disk: profile.disk } : {}),
-                          });
-                        }}>
-                          {profs.map((p) => (
-                            <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
-                          ))}
-                        </Select>
-                      )}
+                      <Select value={(editNode as any)._server_type || ''} label="Profil" onChange={(e) => {
+                        const profile = profs.find((p) => p.id === e.target.value);
+                        setEditNode({ ...editNode, _server_type: e.target.value,
+                          ...(profile ? { cpu: profile.cpu, ram: profile.ram, disk: profile.disk } : {}),
+                        });
+                      }}>
+                        {profs.map((p) => (
+                          <MenuItem key={p.id} value={p.id}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', gap: 2 }}>
+                              <span><b>{p.name}</b></span>
+                              <Typography variant="caption" color="text.secondary">
+                                {p.cpu} vCPU, {(p as any).ram_gb || Math.round(p.ram / 1024)} GB, {p.disk} GB
+                                {p.price_monthly ? ` · €${p.price_monthly}/mo` : ''}
+                              </Typography>
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
                     </FormControl>
                     {locs.length > 0 && (
                       <FormControl size="small">
