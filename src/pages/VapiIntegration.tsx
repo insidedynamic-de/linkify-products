@@ -207,16 +207,29 @@ export default function VapiIntegration() {
                                 <TableCell>Nummer</TableCell>
                                 <TableCell>Name</TableCell>
                                 <TableCell>Assistent</TableCell>
+                                <TableCell align="right">Aktionen</TableCell>
                               </TableRow>
                             </TableHead>
                             <TableBody>
                               {data.phoneNumbers.map((n) => {
                                 const asst = data.assistants.find((a) => a.id === n.assistantId);
+                                const isOurs = (n.name || '').includes('@TalkHub');
                                 return (
                                   <TableRow key={n.id}>
                                     <TableCell sx={{ fontFamily: 'monospace', fontSize: 13 }}>{n.number}</TableCell>
                                     <TableCell>{n.name || '\u2014'}</TableCell>
                                     <TableCell>{asst?.name || '\u2014'}</TableCell>
+                                    <TableCell align="right">
+                                      {isOurs && (
+                                        <IconButton size="small" color="error" onClick={async () => {
+                                          try {
+                                            await api.delete(`/integrations/vapi/accounts/${acc.id}/phone-numbers/${n.id}`);
+                                            setToast({ open: true, message: 'Gelöscht', severity: 'success' });
+                                            loadAccountData(acc.id);
+                                          } catch { setToast({ open: true, message: 'Fehler', severity: 'error' }); }
+                                        }}><DeleteIcon fontSize="small" /></IconButton>
+                                      )}
+                                    </TableCell>
                                   </TableRow>
                                 );
                               })}
@@ -240,7 +253,7 @@ export default function VapiIntegration() {
                           sx={{ minWidth: 200 }}
                           SelectProps={{ native: true }}>
                           <option value="">— Wählen —</option>
-                          {data.phoneNumbers.map((n) => <option key={n.id} value={n.id}>{n.number} ({n.name || 'VAPI'})</option>)}
+                          {data.phoneNumbers.filter((n) => (n.name || '').includes('@TalkHub')).map((n) => <option key={n.id} value={n.id}>{n.number} ({n.name || 'VAPI'})</option>)}
                         </TextField>
                         <TextField size="small" label="Zielnummer" placeholder="+49..." value={testForm.account_id === acc.id ? testForm.phone_number : ''}
                           onChange={(e) => setTestForm({ ...testForm, account_id: acc.id, phone_number: e.target.value })} sx={{ width: 180 }} />
