@@ -206,7 +206,7 @@ export default function AdminInfra() {
         <>
           <Box sx={{ mb: 2 }}>
             <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => {
-              setEditNode({ name: '', provider: 'hetzner', region: 'eu-central', ip: '', node_type: 'managed', cpu: 4, ram: 8192, disk: 160, max_containers: 30 });
+              setEditNode({ name: '', provider: 'hetzner', region: 'eu-central', ip: '', node_type: 'managed', cpu: 4, ram: 8192, disk: 160, max_containers: 5 });
               setNodeDialog(true);
             }}>Node hinzufügen</Button>
           </Box>
@@ -943,6 +943,7 @@ export default function AdminInfra() {
                   payload.image = (editNode as any)._image;
                 }
                 payload.ipv4_public = (editNode as any)._fixedIp ?? true;
+                payload.max_containers = editNode.max_containers || 5;
                 const res = await api.post('/admin/infra/nodes/create-from-provider', payload);
                 setNodeDialog(false);
                 if (res.data.root_password || res.data.ip) {
