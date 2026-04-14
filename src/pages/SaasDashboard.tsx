@@ -6,7 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Card, CardContent, Typography, Chip, Grid2 as Grid,
-  CircularProgress, Button,
+  CircularProgress, Button, Dialog, DialogTitle, DialogContent,
+  DialogActions, FormControl, InputLabel, Select, MenuItem,
 } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
@@ -37,6 +38,11 @@ export default function SaasDashboard() {
   const navigate = useNavigate();
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createProduct, setCreateProduct] = useState('');
+  const [creating, setCreating] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [availableLicenses, setAvailableLicenses] = useState<any[]>([]);
   const user = getUserFromToken();
 
   const fetchData = useCallback(() => {
@@ -65,9 +71,29 @@ export default function SaasDashboard() {
           <Typography variant="h5">{t('dashboard.title')}</Typography>
           {user && <Typography variant="body2" color="text.secondary">{user.email}</Typography>}
         </Box>
-        <Button variant="outlined" size="small" startIcon={<ShoppingCartIcon />} onClick={() => navigate('/produkte')}>
-          {t('nav.catalog')}
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button variant="contained" size="small" onClick={() => {
+            setCreateOpen(true);
+            setAvailableLicenses([]);
+            api.get('/products').then((res) => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const lics: any[] = [];
+              for (const p of (res.data || [])) {
+                for (const l of (p.licenses || [])) {
+                  if (l.effective_status === 'active' || l.effective_status === 'grace') {
+                    lics.push({ ...l, _product: p.product });
+                  }
+                }
+              }
+              setAvailableLicenses(lics);
+            }).catch(() => {});
+          }}>
+            + Instanz
+          </Button>
+          <Button variant="outlined" size="small" startIcon={<ShoppingCartIcon />} onClick={() => navigate('/produkte')}>
+            {t('nav.catalog')}
+          </Button>
+        </Box>
       </Box>
 
       {instances.length === 0 ? (
@@ -166,6 +192,52 @@ export default function SaasDashboard() {
           ))}
         </Grid>
       )}
+
+      {/* Create Instance Dialog */}
+      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Neue Instanz erstellen</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
+          {availableLicenses.length === 0 ? (
+            <Typography color="text.secondary">Lade Lizenzen...</Typography>
+          ) : (
+            <FormControl size="small">
+              <InputLabel>Produkt</InputLabel>
+              <Select value={createProduct} label="Produkt" onChange={(e) => setCreateProduct(e.target.value)}>
+                {[...new Set(availableLicenses.map((l) => l._product))].map((prod) => (
+                  <MenuItem key={String(prod)} value={String(prod)}>{String(prod)}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+          {createProduct && (
+            <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>Verfügbare Lizenzen:</Typography>
+              {availableLicenses.filter((l) => l._product === createProduct).map((l) => (
+                <Box key={l.license_key} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.25 }}>
+                  <Typography variant="caption">{l.license_name || l.subproduct}</Typography>
+                  <Typography variant="caption">{l.max_connections} Connections</Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreateOpen(false)}>Abbrechen</Button>
+          <Button variant="contained" disabled={!createProduct || creating}
+            onClick={async () => {
+              setCreating(true);
+              try {
+                await api.post('/admin/infra/instances', { product: createProduct });
+                setCreateOpen(false);
+                setCreateProduct('');
+                fetchData();
+              } catch { /* ignore */ }
+              setCreating(false);
+            }}>
+            {creating ? <CircularProgress size={16} /> : 'Erstellen'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
