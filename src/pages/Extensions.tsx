@@ -3,6 +3,7 @@
  * @author Viktor Nikolayev <viktor.nikolayev@gmail.com>
  */
 import { useEffect, useState, useCallback } from 'react';
+import { emitConfigChanged, onConfigChanged } from '../store/configEvents';
 import { useTranslation } from 'react-i18next';
 import {
   Box, Typography, Button,
@@ -40,6 +41,8 @@ export default function Extensions() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  // Sibling config tabs stay mounted; reload when any of them mutates data.
+  useEffect(() => onConfigChanged(load), [load]);
 
   const openAdd = () => {
     setEditExt(null);
@@ -94,7 +97,7 @@ export default function Extensions() {
       }
       setDialogOpen(false);
       setToast({ open: true, message: t('status.success'), severity: 'success' });
-      load();
+      emitConfigChanged();
     } catch {
       setToast({ open: true, message: t('status.error'), severity: 'error' });
     }
@@ -103,7 +106,7 @@ export default function Extensions() {
   const toggleEnabled = async (ext: Extension) => {
     try {
       await api.put(`/extensions/${ext.extension}`, { enabled: !(ext.enabled !== false) });
-      load();
+      emitConfigChanged();
     } catch {
       setToast({ open: true, message: t('status.error'), severity: 'error' });
     }
@@ -117,7 +120,7 @@ export default function Extensions() {
     try {
       await api.delete(`/extensions/${ext}`);
       setToast({ open: true, message: t('status.success'), severity: 'success' });
-      load();
+      emitConfigChanged();
     } catch {
       setToast({ open: true, message: t('status.error'), severity: 'error' });
     }

@@ -3,6 +3,7 @@
  * @author Viktor Nikolayev <viktor.nikolayev@gmail.com>
  */
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { emitConfigChanged, onConfigChanged } from '../store/configEvents';
 import { useTranslation } from 'react-i18next';
 import {
   Box, Typography, Card, CardContent, Button,
@@ -103,6 +104,8 @@ export default function RoutesPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  // Sibling config tabs stay mounted; reload when gateways/extensions change.
+  useEffect(() => onConfigChanged(load), [load]);
 
   // ── Save (defined after toggles, see pageDirty below) ──
 
@@ -118,7 +121,7 @@ export default function RoutesPage() {
       }
       setInitialDefaults(defaults);
       setToast({ open: true, message: t('status.success'), severity: 'success' });
-      await load();
+      emitConfigChanged();
     } catch {
       setToast({ open: true, message: t('status.error'), severity: 'error' });
     }

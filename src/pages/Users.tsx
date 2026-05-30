@@ -4,6 +4,7 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { emitConfigChanged, onConfigChanged } from '../store/configEvents';
 import {
   Box, Typography, Button, TextField, Checkbox,
   Switch, FormControlLabel, ToggleButtonGroup, ToggleButton,
@@ -93,6 +94,8 @@ export default function Users() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  // Sibling config tabs stay mounted; reload when any of them mutates data.
+  useEffect(() => onConfigChanged(load), [load]);
 
   // Auto-refresh registrations every 5 seconds
   useEffect(() => {
@@ -281,7 +284,7 @@ export default function Users() {
 
       setDialogOpen(false);
       setToast({ open: true, message: t('status.success'), severity: 'success' });
-      load();
+      emitConfigChanged();
     } catch (err) {
       setToast({ open: true, message: extractError(err), severity: 'error' });
     }
@@ -296,7 +299,7 @@ export default function Users() {
       if (row.type === 'sip') {
         await api.put(`/users/${row.username}`, { enabled: newEnabled });
       }
-      load();
+      emitConfigChanged();
     } catch (err) {
       setToast({ open: true, message: extractError(err), severity: 'error' });
     }
@@ -325,7 +328,7 @@ export default function Users() {
       // VAPI: only delete extension, no user to delete
       await api.delete(`/extensions/${row.extension}`);
       setToast({ open: true, message: t('status.success'), severity: 'success' });
-      load();
+      emitConfigChanged();
     } catch (err) {
       setToast({ open: true, message: extractError(err), severity: 'error' });
     }
