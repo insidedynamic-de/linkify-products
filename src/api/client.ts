@@ -45,16 +45,27 @@ api.interceptors.response.use(
   async (err) => {
     const original = err.config;
 
-    // Don't retry refresh/login/register requests
+    // Track instance proxy errors — circuit breaker after 3 failures
+    if (err.response && original.url?.includes('/instance/') &&
+        (err.response.status === 502 || err.response.status === 504)) {
+      trackInstanceError(err.response.status);
+    }
+
+    // Only the auth endpoints themselves are excluded from refresh-on-401.
+    // NOTE: /instance/* and /integrations/* must NOT be excluded — those are the
+    // most-polled URLs on product pages, so a JWT expiring mid-session surfaces
+    // as a 401 there first. Excluding them meant the expired access token never
+    // got refreshed reactively (the proactive setTimeout is throttled in
+    // background tabs), producing a wall of 401s that looked like a logout.
+    // Concurrent refreshes are deduped via refreshPromise; loops are guarded by
+    // _retry — so a genuine instance-side 401 just retries once and rejects.
     if (
       !err.response ||
       err.response.status !== 401 ||
       original._retry ||
       original.url?.includes('/auth/login') ||
       original.url?.includes('/auth/register') ||
-      original.url?.includes('/auth/refresh') ||
-      original.url?.includes('/integrations/') ||
-      original.url?.includes('/instance/')
+      original.url?.includes('/auth/refresh')
     ) {
       return Promise.reject(err);
     }
@@ -104,11 +115,24 @@ export async function ensureFreshToken(): Promise<void> {
     try {
       const res = await axios.post('/api/v1/auth/refresh', { refresh_token: refresh });
       setTokens(res.data.access_token, res.data.refresh_token);
+      scheduleTokenRefresh(); // re-arm the proactive timer after a manual refresh
     } catch {
       clearTokens();
       window.location.hash = '#/login';
     }
   }
+}
+
+// The proactive refresh timer (setTimeout) is throttled or suspended in
+// background tabs and after the machine sleeps, so the access token can lapse
+// without it firing. Refresh on tab re-focus to close that gap before the next
+// request goes out with an expired token.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      void ensureFreshToken();
+    }
+  });
 }
 
 /** Set instance proxy prefix — all requests will be prefixed */
@@ -118,8 +142,22 @@ export function getInstancePrefix() { return _instancePrefix; }
 
 /** Instance offline flag — stops polling when instance is unreachable */
 let _instanceOffline = false;
-export function setInstanceOffline(offline: boolean) { _instanceOffline = offline; }
+let _instanceFailCount = 0;
+const INSTANCE_FAIL_THRESHOLD = 3;
+export function setInstanceOffline(offline: boolean) {
+  _instanceOffline = offline;
+  if (!offline) _instanceFailCount = 0;
+}
 export function isInstanceOffline() { return _instanceOffline; }
+export function trackInstanceError(status: number) {
+  if (status === 502 || status === 504 || status === 0) {
+    _instanceFailCount++;
+    if (_instanceFailCount >= INSTANCE_FAIL_THRESHOLD) {
+      _instanceOffline = true;
+    }
+  }
+}
+export function resetInstanceErrors() { _instanceFailCount = 0; }
 
 // Override baseURL dynamically based on instance prefix
 const originalGet = api.get.bind(api);
