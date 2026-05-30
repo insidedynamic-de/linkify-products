@@ -2,7 +2,7 @@
  * @file Login — JWT auth: email + password + MFA
  * @author Viktor Nikolayev <viktor.nikolayev@gmail.com>
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -46,6 +46,28 @@ export default function Login({ themeMode, setThemeMode, colorTheme, setColorThe
   const [error, setError] = useState('');
   const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
   const [loading, setLoading] = useState(false);
+
+  // ── Custom-domain branding ──
+  // On a client's CNAME (e.g. admin.firma.de → app.linkify.cloud) we resolve the
+  // tenant by hostname and show their logo/name on the login screen.
+  const [brand, setBrand] = useState<{ name: string; logo_url: string; primary_color: string } | null>(null);
+  useEffect(() => {
+    const host = window.location.hostname;
+    const isDefaultHost =
+      host === 'localhost' || host === '127.0.0.1' || host.endsWith('app.linkify.cloud');
+    if (isDefaultHost) return;
+    api.get('/tenant/resolve', { params: { domain: host } })
+      .then((r) => {
+        if (r.data?.found) {
+          setBrand({
+            name: r.data.name ?? '',
+            logo_url: r.data.logo_url ?? '',
+            primary_color: r.data.primary_color ?? '',
+          });
+        }
+      })
+      .catch(() => { /* fall back to default Linkify branding */ });
+  }, []);
 
   // Settings dialog
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -172,9 +194,23 @@ export default function Login({ themeMode, setThemeMode, colorTheme, setColorThe
     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', bgcolor: 'background.default' }}>
       <Card sx={{ width: 420, p: 2 }}>
         <CardContent sx={{ px: 4, py: 3 }}>
-          <Typography variant="h5" sx={{ mb: 3, textAlign: 'center' }}>
-            Linkify
-          </Typography>
+          {brand?.logo_url ? (
+            <Box sx={{ mb: 3, textAlign: 'center' }}>
+              <Box
+                component="img"
+                src={brand.logo_url}
+                alt={brand.name || 'Logo'}
+                sx={{ maxHeight: 56, maxWidth: '100%', objectFit: 'contain' }}
+              />
+            </Box>
+          ) : (
+            <Typography
+              variant="h5"
+              sx={{ mb: 3, textAlign: 'center', color: brand?.primary_color || undefined }}
+            >
+              {brand?.name || 'Linkify'}
+            </Typography>
+          )}
 
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
