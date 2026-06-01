@@ -4,7 +4,7 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, Button } from '@mui/material';
+import { Box, Button, CircularProgress } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import api from '../api/client';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -16,6 +16,7 @@ export default function SystemSettings() {
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [confirmSave, setConfirmSave] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const showToast = (msg: string, ok: boolean) =>
     setToast({ open: true, message: msg, severity: ok ? 'success' : 'error' });
@@ -33,20 +34,25 @@ export default function SystemSettings() {
     setSettings((prev) => ({ ...prev, [key]: val }));
 
   const doSave = async () => {
-    setConfirmSave(false);
+    setSaving(true);
     try {
       await api.put('/settings', settings);
       await api.post('/config/apply');
       showToast(t('status.success'), true);
     } catch {
       showToast(t('status.error'), false);
+    } finally {
+      setSaving(false);
+      setConfirmSave(false);
     }
   };
 
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <Button variant="contained" startIcon={<SaveIcon />} onClick={() => setConfirmSave(true)}>
+        <Button variant="contained"
+          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+          disabled={saving} onClick={() => setConfirmSave(true)}>
           {t('button.save_reload')}
         </Button>
       </Box>
@@ -55,10 +61,12 @@ export default function SystemSettings() {
       <CodecCard
         codecPrefs={String(settings.codec_prefs || '')}
         onChange={(val) => onChange('codec_prefs', val)}
+        readGain={Number(settings.read_gain ?? 0)}
+        onReadGainChange={(val) => onChange('read_gain', val)}
       />
       <ImportExportCard onToast={showToast} onReload={loadSettings} />
 
-      <ConfirmDialog open={confirmSave} variant="save"
+      <ConfirmDialog open={confirmSave} variant="save" loading={saving}
         title={t('confirm.save_title')} message={t('confirm.save_message')}
         confirmLabel={t('button.save')} cancelLabel={t('button.cancel')}
         onConfirm={doSave} onCancel={() => setConfirmSave(false)} />

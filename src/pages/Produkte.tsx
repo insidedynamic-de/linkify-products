@@ -146,8 +146,9 @@ export default function Produkte() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setToast({ open: true, message: e?.response?.data?.detail || 'Error', severity: 'error' });
+    } finally {
+      setActivating('');
     }
-    setActivating('');
   };
 
   const handleActivateTrial = async (product: string, subproduct: string) => {
@@ -159,8 +160,9 @@ export default function Produkte() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setToast({ open: true, message: e?.response?.data?.detail || 'Error', severity: 'error' });
+    } finally {
+      setActivating('');
     }
-    setActivating('');
   };
 
   const handleDeploy = async (product: string) => {
@@ -172,8 +174,9 @@ export default function Produkte() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setToast({ open: true, message: e?.response?.data?.detail || 'Fehler beim Erstellen', severity: 'error' });
+    } finally {
+      setDeploying('');
     }
-    setDeploying('');
   };
 
   // Expired filter

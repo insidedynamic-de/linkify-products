@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, Typography, Box, Button, Divider } from '@mui/material';
+import { Card, CardContent, Typography, Box, Button, Divider, CircularProgress } from '@mui/material';
 import UploadIcon from '@mui/icons-material/Upload';
 import DownloadIcon from '@mui/icons-material/Download';
 import RestoreIcon from '@mui/icons-material/Restore';
@@ -21,22 +21,32 @@ interface Props {
 export default function ImportExportCard({ onToast, onReload }: Props) {
   const { t } = useTranslation();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const demo = isDemoMode();
 
   const exportConfig = async () => {
-    const res = await api.get('/config/export');
-    const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'talkhub_config.json';
-    a.click();
-    URL.revokeObjectURL(url);
+    setExporting(true);
+    try {
+      const res = await api.get('/config/export');
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'talkhub_config.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      onToast(t('status.error'), false);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const importConfig = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setImporting(true);
     const formData = new FormData();
     formData.append('file', file);
     try {
@@ -47,8 +57,10 @@ export default function ImportExportCard({ onToast, onReload }: Props) {
       onReload();
     } catch {
       onToast(t('status.error'), false);
+    } finally {
+      setImporting(false);
+      e.target.value = '';
     }
-    e.target.value = '';
   };
 
   const handleResetDemo = () => {
@@ -67,12 +79,12 @@ export default function ImportExportCard({ onToast, onReload }: Props) {
             {t('config.export_desc')}
           </Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button variant="outlined" startIcon={<DownloadIcon />} onClick={exportConfig}>
+            <Button variant="outlined" disabled={exporting} startIcon={exporting ? <CircularProgress size={16} color="inherit" /> : <DownloadIcon />} onClick={exportConfig}>
               {t('config.export_json')}
             </Button>
-            <Button variant="outlined" component="label" startIcon={<UploadIcon />}>
+            <Button variant="outlined" disabled={importing} component="label" startIcon={importing ? <CircularProgress size={16} color="inherit" /> : <UploadIcon />}>
               {t('config.import_json')}
-              <input type="file" hidden accept=".json" onChange={importConfig} />
+              <input type="file" hidden accept=".json" onChange={importConfig} disabled={importing} />
             </Button>
           </Box>
 

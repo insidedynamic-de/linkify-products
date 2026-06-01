@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { emitConfigChanged, onConfigChanged } from '../store/configEvents';
 import { useTranslation } from 'react-i18next';
 import {
-  Box, Typography, Card, CardContent, Button,
+  Box, Typography, Card, CardContent, Button, CircularProgress,
   TextField, Tooltip, Chip, Checkbox,
   RadioGroup, Radio, FormControlLabel, FormLabel,
   Table, TableHead, TableBody, TableRow, TableCell,
@@ -68,6 +68,9 @@ export default function RoutesPage() {
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'warning' });
   const [confirmSave, setConfirmSave] = useState<{ open: boolean; action: (() => Promise<void>) | null }>({ open: false, action: null });
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; name: string; action: (() => Promise<void>) | null }>({ open: false, name: '', action: null });
+  const [savingAll, setSavingAll] = useState(false);
+  const [savingRoute, setSavingRoute] = useState(false);
+  const [deletingRoute, setDeletingRoute] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -110,6 +113,7 @@ export default function RoutesPage() {
   // ── Save (defined after toggles, see pageDirty below) ──
 
   const saveAllChanges = async () => {
+    setSavingAll(true);
     try {
       if (defaultsDirty) {
         await api.put('/routes/defaults', defaults);
@@ -124,6 +128,8 @@ export default function RoutesPage() {
       emitConfigChanged();
     } catch {
       setToast({ open: true, message: t('status.error'), severity: 'error' });
+    } finally {
+      setSavingAll(false);
     }
   };
 
@@ -272,6 +278,7 @@ export default function RoutesPage() {
   // ── Save route ──
 
   const doSaveRoute = async () => {
+    setSavingRoute(true);
     try {
       const dirChanged = editRoute && editRoute.direction !== form.direction;
       const extChanged = editRoute && editRoute.extension !== form.extension;
@@ -438,8 +445,16 @@ export default function RoutesPage() {
             <Typography variant="body2" color="warning.main" fontWeight={600}>
               {t('route.unsaved_changes', { count: pendingToggles.size + (defaultsDirty ? 1 : 0) })}
             </Typography>
-            <Button variant="contained" size="small" onClick={saveAllChanges}>{t('button.save')}</Button>
-            <Button variant="outlined" size="small" onClick={discardAllChanges}>{t('button.discard')}</Button>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={saveAllChanges}
+              disabled={savingAll}
+              startIcon={savingAll ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
+              {t('button.save')}
+            </Button>
+            <Button variant="outlined" size="small" onClick={discardAllChanges} disabled={savingAll}>{t('button.discard')}</Button>
           </Box>
         )}
       </Box>

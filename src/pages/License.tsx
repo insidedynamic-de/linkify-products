@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Box, Typography, Card, CardContent, TextField, Button, Chip,
-  Switch, FormControlLabel, IconButton, Tooltip,
+  Switch, FormControlLabel, IconButton, Tooltip, CircularProgress,
 } from '@mui/material';
 import Grid from '@mui/material/Grid2';
 import SaveIcon from '@mui/icons-material/Save';
@@ -64,6 +64,8 @@ export default function License() {
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [confirmSave, setConfirmSave] = useState<{ open: boolean; action: (() => Promise<void>) | null }>({ open: false, action: null });
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; name: string; action: (() => Promise<void>) | null }>({ open: false, name: '', action: null });
+  const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const showToast = (msg: string, ok: boolean) => setToast({ open: true, message: msg, severity: ok ? 'success' : 'error' });
 
@@ -128,11 +130,13 @@ export default function License() {
 
   // ── Refresh ──
   const refreshLicense = async () => {
+    setRefreshing(true);
     try {
       await api.post('/license/refresh');
       showToast(t('license.refresh_success'), true);
       load();
     } catch { showToast(t('license.refresh_failed'), false); }
+    finally { setRefreshing(false); }
   };
 
   // ── View license ──
@@ -175,13 +179,17 @@ export default function License() {
   // ── Confirm handlers ──
   const handleConfirmSave = async () => {
     const a = confirmSave.action;
-    setConfirmSave({ open: false, action: null });
-    if (a) await a();
+    if (!a) { setConfirmSave({ open: false, action: null }); return; }
+    setSaving(true);
+    try { await a(); }
+    finally { setSaving(false); setConfirmSave({ open: false, action: null }); }
   };
   const handleConfirmDelete = async () => {
     const a = confirmDelete.action;
-    setConfirmDelete({ open: false, name: '', action: null });
-    if (a) await a();
+    if (!a) { setConfirmDelete({ open: false, name: '', action: null }); return; }
+    setSaving(true);
+    try { await a(); }
+    finally { setSaving(false); setConfirmDelete({ open: false, name: '', action: null }); }
   };
 
   const copyToClipboard = (text: string) => {
@@ -193,7 +201,12 @@ export default function License() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5">{t('license.license_info')}</Typography>
-        <Button variant="outlined" startIcon={<RefreshIcon />} onClick={refreshLicense}>
+        <Button
+          variant="outlined"
+          startIcon={refreshing ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon />}
+          onClick={refreshLicense}
+          disabled={refreshing}
+        >
           {t('license.refresh_license')}
         </Button>
       </Box>
@@ -406,12 +419,12 @@ export default function License() {
         )}
       </FormDialog>
 
-      <ConfirmDialog open={confirmSave.open} variant="save"
+      <ConfirmDialog open={confirmSave.open} variant="save" loading={saving}
         title={t('confirm.save_title')} message={t('confirm.save_message')}
         confirmLabel={t('button.save')} cancelLabel={t('button.cancel')}
         onConfirm={handleConfirmSave} onCancel={() => setConfirmSave({ open: false, action: null })} />
 
-      <ConfirmDialog open={confirmDelete.open} variant="delete"
+      <ConfirmDialog open={confirmDelete.open} variant="delete" loading={saving}
         title={t('confirm.delete_title')}
         message={t('confirm.delete_message', { name: confirmDelete.name })}
         confirmLabel={t('button.delete')} cancelLabel={t('button.cancel')}

@@ -40,6 +40,7 @@ export default function AdminClients() {
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editTenant, setEditTenant] = useState<Record<string, string | number | null>>({});
   const [linking, setLinking] = useState<number | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -144,6 +145,7 @@ export default function AdminClients() {
   };
 
   const handleSave = async () => {
+    setSaving(true);
     try {
       // Send only editable fields
       const { name, email, phone, address, zip, city, country, vat_id, contact_person,
@@ -160,6 +162,8 @@ export default function AdminClients() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setToast({ open: true, message: e?.response?.data?.detail || 'Error', severity: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -233,7 +237,7 @@ export default function AdminClients() {
       </TableContainer>
 
       {/* Edit Dialog */}
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={editOpen} onClose={saving ? undefined : () => setEditOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Edit Tenant #{editTenant.id}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
           <TextField size="small" label={t('auth.company_name')} value={editTenant.name || ''} onChange={(e) => setEditTenant({ ...editTenant, name: e.target.value })} />
@@ -269,8 +273,9 @@ export default function AdminClients() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditOpen(false)}>{t('button.cancel')}</Button>
-          <Button variant="contained" onClick={handleSave}>{t('button.save')}</Button>
+          <Button onClick={() => setEditOpen(false)} disabled={saving}>{t('button.cancel')}</Button>
+          <Button variant="contained" onClick={handleSave} disabled={saving}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : undefined}>{t('button.save')}</Button>
         </DialogActions>
       </Dialog>
 

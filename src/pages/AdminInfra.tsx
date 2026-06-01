@@ -125,7 +125,10 @@ export default function AdminInfra() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // ── Node CRUD ──
+  const [savingNode, setSavingNode] = useState(false);
+  const [busyNode, setBusyNode] = useState<number | null>(null);
   const saveNode = async () => {
+    setSavingNode(true);
     try {
       if (editNode.id) {
         await api.put(`/admin/infra/nodes/${editNode.id}`, editNode);
@@ -138,11 +141,14 @@ export default function AdminInfra() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setToast({ open: true, message: e?.response?.data?.detail || 'Error', severity: 'error' });
+    } finally {
+      setSavingNode(false);
     }
   };
 
   const deleteNode = async (id: number) => {
     if (!confirm('Delete node?')) return;
+    setBusyNode(id);
     try {
       await api.delete(`/admin/infra/nodes/${id}`);
       setToast({ open: true, message: 'Deleted', severity: 'success' });
@@ -150,8 +156,14 @@ export default function AdminInfra() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setToast({ open: true, message: e?.response?.data?.detail || 'Error', severity: 'error' });
+    } finally {
+      setBusyNode(null);
     }
   };
+
+  // ── Per-action busy keys (icon-only spinners while request in flight) ──
+  // Key format: `${id}:${action}` so different actions on the same row stay independent.
+  const [busyAction, setBusyAction] = useState<string | null>(null);
 
   // ── Instance CRUD ──
   const [deploying, setDeploying] = useState(false);
@@ -251,21 +263,31 @@ export default function AdminInfra() {
                       {n.coolify_server_id && <Chip label={`Coolify: ${n.coolify_server_id}`} size="small" variant="outlined" sx={{ mb: 0.5, fontSize: 10 }} />}
                       {n.tenant_name && <Chip label={`Dedicated: ${n.tenant_name}`} size="small" color="info" sx={{ mb: 1 }} />}
                       <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
-                        <Button size="small" onClick={async () => {
+                        <Button size="small" disabled={busyAction === `${n.id}:node-check`}
+                          startIcon={busyAction === `${n.id}:node-check` ? <CircularProgress size={16} /> : undefined}
+                          onClick={async () => {
+                          setBusyAction(`${n.id}:node-check`);
                           try {
                             const res = await api.post(`/admin/infra/nodes/${n.id}/check`);
                             setToast({ open: true, message: `${n.name}: ${res.data.status}`, severity: res.data.success ? 'success' : 'error' });
                             fetchAll();
                           } catch { setToast({ open: true, message: 'Check failed', severity: 'error' }); }
+                          finally { setBusyAction(null); }
                         }}>Status</Button>
-                        <Button size="small" onClick={async () => {
+                        <Button size="small" disabled={busyAction === `${n.id}:node-fw`}
+                          startIcon={busyAction === `${n.id}:node-fw` ? <CircularProgress size={16} /> : undefined}
+                          onClick={async () => {
+                          setBusyAction(`${n.id}:node-fw`);
                           try {
                             const res = await api.post(`/admin/infra/nodes/${n.id}/firewall`);
                             setToast({ open: true, message: `Firewall: ${res.data.added?.join(', ') || 'OK'}`, severity: 'success' });
                           } catch { setToast({ open: true, message: 'Firewall failed', severity: 'error' }); }
+                          finally { setBusyAction(null); }
                         }}>Firewall</Button>
                         <IconButton size="small" onClick={() => { setEditNode({ ...n } as Record<string, unknown>); setNodeDialog(true); }}><EditIcon fontSize="small" /></IconButton>
-                        <IconButton size="small" color="error" onClick={() => deleteNode(n.id)}><DeleteIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" color="error" disabled={busyNode === n.id} onClick={() => deleteNode(n.id)}>
+                          {busyNode === n.id ? <CircularProgress size={16} /> : <DeleteIcon fontSize="small" />}
+                        </IconButton>
                       </Box>
                     </CardContent>
                   </Card>
@@ -351,15 +373,22 @@ export default function AdminInfra() {
                       )}
                       {/* Actions */}
                       <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
-                        <Button size="small" onClick={async () => {
+                        <Button size="small" disabled={busyAction === `${i.id}:inst-check`}
+                          startIcon={busyAction === `${i.id}:inst-check` ? <CircularProgress size={16} /> : undefined}
+                          onClick={async () => {
+                          setBusyAction(`${i.id}:inst-check`);
                           try {
                             const r = await api.post(`/admin/infra/instances/${i.id}/check`);
                             setToast({ open: true, message: `${i.name}: ${r.data.status}`, severity: r.data.success ? 'success' : 'error' });
                             if (r.data.ports) setPortChecks((prev) => ({ ...prev, [i.id]: r.data.ports }));
                             fetchAll();
                           } catch { setToast({ open: true, message: 'Check failed', severity: 'error' }); }
+                          finally { setBusyAction(null); }
                         }}>Health</Button>
-                        <Button size="small" disabled={licInfo[i.id]?.licensed === undefined && !!licInfo[i.id]} onClick={async () => {
+                        <Button size="small" disabled={busyAction === `${i.id}:inst-lic`}
+                          startIcon={busyAction === `${i.id}:inst-lic` ? <CircularProgress size={16} /> : undefined}
+                          onClick={async () => {
+                          setBusyAction(`${i.id}:inst-lic`);
                           setLicInfo((prev) => ({ ...prev, [i.id]: { licensed: undefined as unknown as boolean, features: [], products: [] } }));
                           setToast({ open: true, message: 'Lizenz wird geprüft...', severity: 'success' });
                           try {
@@ -369,15 +398,23 @@ export default function AdminInfra() {
                             setToast({ open: true, message: d.licensed ? `Lizenziert: ${(d.active_products || []).join(', ')}` : 'Keine aktive Lizenz', severity: d.licensed ? 'success' : 'error' });
                             fetchAll();
                           } catch { setToast({ open: true, message: 'Lizenz-Refresh fehlgeschlagen', severity: 'error' }); }
+                          finally { setBusyAction(null); }
                         }}>Lic Refresh</Button>
-                        <Button size="small" onClick={async () => {
+                        <Button size="small" disabled={busyAction === `${i.id}:inst-fw`}
+                          startIcon={busyAction === `${i.id}:inst-fw` ? <CircularProgress size={16} /> : undefined}
+                          onClick={async () => {
+                          setBusyAction(`${i.id}:inst-fw`);
                           try {
                             await api.post(`/admin/infra/instances/${i.id}/firewall`);
                             setToast({ open: true, message: 'Firewall aktualisiert', severity: 'success' });
                           } catch { setToast({ open: true, message: 'Firewall failed', severity: 'error' }); }
+                          finally { setBusyAction(null); }
                         }}>Firewall</Button>
-                        <Button size="small" color="primary" variant="outlined" onClick={async () => {
+                        <Button size="small" color="primary" variant="outlined" disabled={busyAction === `${i.id}:inst-update`}
+                          startIcon={busyAction === `${i.id}:inst-update` ? <CircularProgress size={16} /> : undefined}
+                          onClick={async () => {
                           if (!confirm(`Instanz "${i.name}" auf neueste Version updaten?`)) return;
+                          setBusyAction(`${i.id}:inst-update`);
                           setToast({ open: true, message: `Update ${i.name}...`, severity: 'success' });
                           try {
                             await api.post(`/admin/infra/instances/${i.id}/update`);
@@ -386,37 +423,47 @@ export default function AdminInfra() {
                           } catch (err: unknown) {
                             const e = err as { response?: { data?: { detail?: string } } };
                             setToast({ open: true, message: e?.response?.data?.detail || 'Update failed', severity: 'error' });
-                          }
+                          } finally { setBusyAction(null); }
                         }}>Update</Button>
-                        <Button size="small" color="warning" onClick={async () => {
+                        <Button size="small" color="warning" disabled={busyAction === `${i.id}:inst-restart`}
+                          startIcon={busyAction === `${i.id}:inst-restart` ? <CircularProgress size={16} /> : undefined}
+                          onClick={async () => {
                           if (!confirm(`Instanz "${i.name}" neustarten?`)) return;
+                          setBusyAction(`${i.id}:inst-restart`);
                           setToast({ open: true, message: `Restart ${i.name}...`, severity: 'success' });
                           try {
                             await api.post(`/admin/infra/instances/${i.id}/restart`);
                             setToast({ open: true, message: `${i.name} neugestartet`, severity: 'success' });
                             fetchAll();
                           } catch { setToast({ open: true, message: 'Restart failed', severity: 'error' }); }
+                          finally { setBusyAction(null); }
                         }}>Restart</Button>
                         <Box sx={{ flex: 1 }} />
                         <IconButton size="small" onClick={() => { setEditInstance({ ...i }); setInstanceDialog(true); }}><EditIcon fontSize="small" /></IconButton>
                         {i.status === 'deleted' ? (
-                          <Button size="small" color="error" variant="outlined" onClick={async () => {
+                          <Button size="small" color="error" variant="outlined" disabled={busyAction === `${i.id}:inst-del`}
+                            startIcon={busyAction === `${i.id}:inst-del` ? <CircularProgress size={16} /> : undefined}
+                            onClick={async () => {
                             if (!confirm(`Instanz "${i.name}" ENDGÜLTIG löschen? Alle Daten werden entfernt.`)) return;
+                            setBusyAction(`${i.id}:inst-del`);
                             try {
                               await api.delete(`/admin/infra/instances/${i.id}?permanent=true`);
                               setToast({ open: true, message: 'Endgültig gelöscht', severity: 'success' });
                               fetchAll();
                             } catch { setToast({ open: true, message: 'Fehler', severity: 'error' }); }
+                            finally { setBusyAction(null); }
                           }}>Entfernen</Button>
                         ) : (
-                          <IconButton size="small" color="error" onClick={async () => {
+                          <IconButton size="small" color="error" disabled={busyAction === `${i.id}:inst-del`} onClick={async () => {
                             if (!confirm(`Instanz "${i.name}" stoppen und deaktivieren?`)) return;
+                            setBusyAction(`${i.id}:inst-del`);
                             try {
                               await api.delete(`/admin/infra/instances/${i.id}`);
                               setToast({ open: true, message: 'Gestoppt', severity: 'success' });
                               fetchAll();
                             } catch { setToast({ open: true, message: 'Fehler', severity: 'error' }); }
-                          }}><DeleteIcon fontSize="small" /></IconButton>
+                            finally { setBusyAction(null); }
+                          }}>{busyAction === `${i.id}:inst-del` ? <CircularProgress size={16} /> : <DeleteIcon fontSize="small" />}</IconButton>
                         )}
                       </Box>
                     </CardContent>
@@ -442,12 +489,16 @@ export default function AdminInfra() {
               }
               setTemplateDialog(true);
             }}>Template hinzufügen</Button>
-            <Button variant="outlined" size="small" onClick={async () => {
+            <Button variant="outlined" size="small" disabled={busyAction === 'tmpl-seed'}
+              startIcon={busyAction === 'tmpl-seed' ? <CircularProgress size={16} /> : undefined}
+              onClick={async () => {
+              setBusyAction('tmpl-seed');
               try {
                 await api.post('/admin/infra/templates/seed');
                 setToast({ open: true, message: 'Default templates created', severity: 'success' });
                 fetchAll();
               } catch { setToast({ open: true, message: 'Error', severity: 'error' }); }
+              finally { setBusyAction(null); }
             }}>Defaults laden</Button>
           </Box>
           <Grid container spacing={3}>
@@ -484,14 +535,16 @@ export default function AdminInfra() {
                         }
                         setTemplateDialog(true);
                       }}><EditIcon fontSize="small" /></IconButton>
-                      <IconButton size="small" color="error" onClick={async () => {
+                      <IconButton size="small" color="error" disabled={busyAction === `${tmpl.id}:tmpl-del`} onClick={async () => {
                         if (!confirm(`Template "${tmpl.product}" löschen?`)) return;
+                        setBusyAction(`${tmpl.id}:tmpl-del`);
                         try {
                           await api.delete(`/admin/infra/templates/${tmpl.id}`);
                           setToast({ open: true, message: 'Gelöscht', severity: 'success' });
                           fetchAll();
                         } catch { setToast({ open: true, message: 'Fehler', severity: 'error' }); }
-                      }}><DeleteIcon fontSize="small" /></IconButton>
+                        finally { setBusyAction(null); }
+                      }}>{busyAction === `${tmpl.id}:tmpl-del` ? <CircularProgress size={16} /> : <DeleteIcon fontSize="small" />}</IconButton>
                     </Box>
                   </CardContent>
                 </Card>
@@ -753,14 +806,18 @@ export default function AdminInfra() {
           <TextField size="small" label="Description" value={editTemplate.description || ''} onChange={(e) => setEditTemplate({ ...editTemplate, description: e.target.value })} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setTemplateDialog(false)}>{t('button.cancel')}</Button>
-          <Button variant="contained" onClick={async () => {
+          <Button onClick={() => setTemplateDialog(false)} disabled={busyAction === 'tmpl-save'}>{t('button.cancel')}</Button>
+          <Button variant="contained" disabled={busyAction === 'tmpl-save'}
+            startIcon={busyAction === 'tmpl-save' ? <CircularProgress size={16} color="inherit" /> : undefined}
+            onClick={async () => {
+            setBusyAction('tmpl-save');
             try {
               await api.put(`/admin/infra/templates/${editTemplate.product}`, editTemplate);
               setToast({ open: true, message: 'Template gespeichert', severity: 'success' });
               setTemplateDialog(false);
               fetchAll();
             } catch { setToast({ open: true, message: 'Error', severity: 'error' }); }
+            finally { setBusyAction(null); }
           }}>{t('button.save')}</Button>
         </DialogActions>
       </Dialog>
@@ -948,7 +1005,7 @@ export default function AdminInfra() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setNodeDialog(false)}>{t('button.cancel')}</Button>
+          <Button onClick={() => setNodeDialog(false)} disabled={creating || savingNode}>{t('button.cancel')}</Button>
           {/* Cloud provider: create VM via API (universal for Hetzner + IONOS) */}
           {(editNode.provider === 'hetzner' || editNode.provider === 'ionos') && !editNode.id && ((editNode as any)._server_type as string) && (
             <Button variant="contained" color="success" disabled={creating} onClick={async () => {
@@ -982,7 +1039,8 @@ export default function AdminInfra() {
               {creating ? <CircularProgress size={16} /> : 'VM erstellen'}
             </Button>
           )}
-          <Button variant="contained" onClick={saveNode}>
+          <Button variant="contained" onClick={saveNode} disabled={savingNode || creating}
+            startIcon={savingNode ? <CircularProgress size={16} color="inherit" /> : undefined}>
             {editNode.id ? t('button.save') : 'Manuell speichern'}
           </Button>
         </DialogActions>
@@ -1275,8 +1333,8 @@ function CronjobsTab() {
                         {saving === j.key ? '...' : 'Save'}
                       </Button>
                       <Button size="small" variant="outlined" color={active ? 'error' : 'success'}
-                        onClick={() => toggle(j.key)}>
-                        {active ? 'Stop' : 'Start'}
+                        disabled={saving === j.key} onClick={() => toggle(j.key)}>
+                        {saving === j.key ? '...' : active ? 'Stop' : 'Start'}
                       </Button>
                       <Button size="small" variant="outlined" disabled={running === j.key}
                         onClick={() => runNow(j.key)}>

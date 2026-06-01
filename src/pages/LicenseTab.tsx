@@ -8,6 +8,7 @@ import {
   Box, Typography, Card, CardContent, TextField, Button, Chip,
   IconButton, Tooltip, Alert,
 } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import api from '../api/client';
@@ -66,6 +67,11 @@ export default function LicenseTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogLicense, setDialogLicense] = useState<LicenseEntry | null>(null);
 
+  // In-flight flags
+  const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [confirmSave, setConfirmSave] = useState<{ open: boolean; action: (() => Promise<void>) | null }>({ open: false, action: null });
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; name: string; action: (() => Promise<void>) | null }>({ open: false, name: '', action: null });
@@ -112,6 +118,7 @@ export default function LicenseTab() {
 
   // Activate license
   const doActivateLicense = async () => {
+    setSaving(true);
     try {
       await api.put('/license', { license_key: licenseKey });
       setLicenseKey('');
@@ -128,7 +135,7 @@ export default function LicenseTab() {
       } else {
         showToast(t('status.error'), false);
       }
-    }
+    } finally { setSaving(false); }
   };
   const activateLicense = () => setConfirmSave({ open: true, action: doActivateLicense });
 
@@ -137,6 +144,7 @@ export default function LicenseTab() {
     setConfirmSave({
       open: true,
       action: async () => {
+        setSaving(true);
         try {
           await api.put('/license', { license_key: l.license_key });
           showToast(t('status.success'), true);
@@ -144,18 +152,19 @@ export default function LicenseTab() {
           notifyLicenseChanged();
         } catch {
           showToast(t('status.error'), false);
-        }
+        } finally { setSaving(false); }
       },
     });
   };
 
   // Refresh
   const refreshLicense = async () => {
+    setRefreshing(true);
     try {
       await api.post('/license/refresh');
       showToast(t('license.refresh_success'), true);
       load();
-    } catch { showToast(t('license.refresh_failed'), false); }
+    } catch { showToast(t('license.refresh_failed'), false); } finally { setRefreshing(false); }
   };
 
   // View license
@@ -172,6 +181,7 @@ export default function LicenseTab() {
       open: true,
       name: l.license_key,
       action: async () => {
+        setSaving(true);
         try {
           await api.delete(`/license/${encodeURIComponent(l.license_key)}`);
           showToast(t('license.deactivate_success'), true);
@@ -184,7 +194,7 @@ export default function LicenseTab() {
           } else {
             showToast(t('status.error'), false);
           }
-        }
+        } finally { setSaving(false); }
       },
     });
   };
@@ -200,9 +210,12 @@ export default function LicenseTab() {
       open: true,
       name: l.license_key,
       action: async () => {
-        await api.delete(`/license/${encodeURIComponent(l.license_key)}`);
-        load();
-        notifyLicenseChanged();
+        setSaving(true);
+        try {
+          await api.delete(`/license/${encodeURIComponent(l.license_key)}`);
+          load();
+          notifyLicenseChanged();
+        } finally { setSaving(false); }
       },
     });
   };
@@ -215,6 +228,8 @@ export default function LicenseTab() {
       open: true,
       name: `${al.license_name} (${al.license_key})`,
       action: async () => {
+        setSaving(true);
+        setBusyKey(al.license_key);
         try {
           await api.put('/license', { license_key: al.license_key });
           showToast(t('status.success'), true);
@@ -228,7 +243,7 @@ export default function LicenseTab() {
           } else {
             showToast(t('status.error'), false);
           }
-        }
+        } finally { setSaving(false); setBusyKey(null); }
       },
     });
   };
@@ -253,7 +268,12 @@ export default function LicenseTab() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <Button variant="outlined" startIcon={<RefreshIcon />} onClick={refreshLicense}>
+        <Button
+          variant="outlined"
+          startIcon={refreshing ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon />}
+          onClick={refreshLicense}
+          disabled={refreshing}
+        >
           {t('license.refresh_license')}
         </Button>
       </Box>
@@ -304,9 +324,11 @@ export default function LicenseTab() {
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                     <Chip size="small" label={al.license_name} color="primary" />
                     <Tooltip title={t('license.install')}>
-                      <IconButton size="small" color="success" onClick={() => requestInstall(al)}>
-                        <AddCircleOutlineIcon />
-                      </IconButton>
+                      <span>
+                        <IconButton size="small" color="success" onClick={() => requestInstall(al)} disabled={busyKey === al.license_key}>
+                          {busyKey === al.license_key ? <CircularProgress size={16} /> : <AddCircleOutlineIcon />}
+                        </IconButton>
+                      </span>
                     </Tooltip>
                   </Box>
                   <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: 12, color: 'text.secondary', mb: 0.5 }}>

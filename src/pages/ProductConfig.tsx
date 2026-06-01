@@ -53,6 +53,10 @@ export default function ProductConfig() {
   const [copied, setCopied] = useState('');
   const [licenseBlocked, setLicenseBlocked] = useState(false);
   const [liveStatus, setLiveStatus] = useState<'loading' | 'online' | 'offline' | 'suspended'>('loading');
+  const [updating, setUpdating] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const [refreshingLicense, setRefreshingLicense] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
   const user = getUserFromToken();
   const isAdminViewing = !getImpersonateUser() && user?.tenant_type === 'provider';
 
@@ -184,16 +188,22 @@ export default function ProductConfig() {
         />
         <Box sx={{ flex: 1 }} />
         <Button size="small" variant="outlined" sx={{ mr: 1 }}
+          disabled={updating}
+          startIcon={updating ? <CircularProgress size={16} /> : undefined}
           onClick={async () => {
+            setUpdating(true);
             try {
               await api.post(`/admin/infra/instances/${instanceId}/update`);
-            } catch { /* ignore */ }
+            } catch { /* ignore */ } finally { setUpdating(false); }
           }}>Update</Button>
         <Button size="small" variant="outlined" color="warning" sx={{ mr: 1 }}
+          disabled={restarting}
+          startIcon={restarting ? <CircularProgress size={16} /> : undefined}
           onClick={async () => {
+            setRestarting(true);
             try {
               await api.post(`/admin/infra/instances/${instanceId}/restart`);
-            } catch { /* ignore */ }
+            } catch { /* ignore */ } finally { setRestarting(false); }
           }}>Restart</Button>
         <Button
           size="small"
@@ -230,7 +240,15 @@ export default function ProductConfig() {
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3, textAlign: 'center', maxWidth: 500 }}>
               {t('instance.offline_desc', 'Instanz ist nicht erreichbar. Polling wurde gestoppt.')}
             </Typography>
-            <Button variant="contained" startIcon={<RefreshIcon />} onClick={checkHealth}>
+            <Button
+              variant="contained"
+              disabled={checkingStatus}
+              startIcon={checkingStatus ? <CircularProgress size={16} /> : <RefreshIcon />}
+              onClick={async () => {
+                setCheckingStatus(true);
+                try { await checkHealth(); } finally { setCheckingStatus(false); }
+              }}
+            >
               {t('instance.check_status', 'Status prüfen')}
             </Button>
           </Box>
@@ -250,13 +268,19 @@ export default function ProductConfig() {
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3, textAlign: 'center', maxWidth: 500 }}>
               {t('instance.license_suspended_desc')}
             </Typography>
-            <Button variant="contained" onClick={async () => {
-              try {
-                await api.post('/license/refresh');
-                const licRes = await api.get('/license');
-                if (licRes.data?.active) setLicenseBlocked(false);
-              } catch { /* ignore */ }
-            }}>
+            <Button
+              variant="contained"
+              disabled={refreshingLicense}
+              startIcon={refreshingLicense ? <CircularProgress size={16} /> : undefined}
+              onClick={async () => {
+                setRefreshingLicense(true);
+                try {
+                  await api.post('/license/refresh');
+                  const licRes = await api.get('/license');
+                  if (licRes.data?.active) setLicenseBlocked(false);
+                } catch { /* ignore */ } finally { setRefreshingLicense(false); }
+              }}
+            >
               Lizenz prüfen
             </Button>
           </Box>

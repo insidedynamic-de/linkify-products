@@ -103,6 +103,10 @@ export interface CrudTableProps<T> {
   // ── Search ──
   /** Show a search field above the table */
   searchable?: boolean;
+
+  // ── Per-row busy state ──
+  /** Row key (from getKey) that is currently busy. Disables toggle switch and action buttons for that row. */
+  busyRow?: string | number | null;
 }
 
 /** Extract text value from a row for a given column (for search) */
@@ -131,6 +135,7 @@ export default function CrudTable<T>({
   maxHeight,
   columnOrderKey,
   searchable,
+  busyRow,
 }: CrudTableProps<T>) {
   const { t } = useTranslation();
   const hasActions = !!(onView || onEdit || onDelete || getEnabled);
@@ -238,9 +243,11 @@ export default function CrudTable<T>({
         <TableBody>
           {filteredRows.map((row, i) => {
             const enabled = getEnabled ? getEnabled(row) : true;
+            const rowKey = getKey(row, i);
+            const isBusy = busyRow === rowKey;
             return (
               <TableRow
-                key={getKey(row, i)}
+                key={rowKey}
                 sx={shouldDim && !enabled ? { opacity: 0.5 } : undefined}
               >
                 {orderedColumns.map((col, ci) => (
@@ -255,22 +262,23 @@ export default function CrudTable<T>({
                         <Switch
                           size="small"
                           checked={enabled}
+                          disabled={isBusy}
                           onChange={() => onToggle?.(row, i)}
                           color={enabled ? 'success' : 'default'}
                         />
                       )}
                       {onView && (
-                        <IconButton size="small" onClick={() => onView(row)}>
+                        <IconButton size="small" disabled={isBusy} onClick={() => onView(row)}>
                           <VisibilityIcon fontSize="small" />
                         </IconButton>
                       )}
                       {onEdit && (
-                        <IconButton size="small" onClick={() => onEdit(row)}>
+                        <IconButton size="small" disabled={isBusy} onClick={() => onEdit(row)}>
                           <EditIcon fontSize="small" />
                         </IconButton>
                       )}
                       {onDelete && (
-                        <IconButton size="small" color="error" onClick={() => onDelete(row)}>
+                        <IconButton size="small" color="error" disabled={isBusy} onClick={() => onDelete(row)}>
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       )}

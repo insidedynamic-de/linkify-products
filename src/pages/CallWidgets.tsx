@@ -8,7 +8,7 @@ import {
   Box, Typography, Card, CardContent, Button, Chip, IconButton, Tooltip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   TextField, Switch, FormControlLabel, MenuItem, Select, InputLabel, FormControl,
-  Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab,
+  Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, CircularProgress,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -55,6 +55,8 @@ export default function CallWidgets() {
   const [codeDialog, setCodeDialog] = useState<CallWidget | null>(null);
   const [codeTab, setCodeTab] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; id: number; name: string }>({ open: false, id: 0, name: '' });
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
   const load = useCallback(async () => {
@@ -89,6 +91,7 @@ export default function CallWidgets() {
   };
 
   const save = async () => {
+    setSaving(true);
     try {
       if (editId) {
         await api.put(`/call-widgets/${editId}`, form);
@@ -98,15 +101,17 @@ export default function CallWidgets() {
       showToast(true);
       setDialogOpen(false);
       load();
-    } catch { showToast(false); }
+    } catch { showToast(false); } finally { setSaving(false); }
   };
 
   const remove = async (id: number) => {
+    setDeletingId(id);
     try {
       await api.delete(`/call-widgets/${id}`);
       showToast(true);
+      setConfirmDelete({ open: false, id: 0, name: '' });
       load();
-    } catch { showToast(false); }
+    } catch { showToast(false); } finally { setDeletingId(null); }
   };
 
   const copyCode = (code: string) => {
@@ -201,8 +206,9 @@ export default function CallWidgets() {
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <IconButton size="small" color="error" onClick={() => setConfirmDelete({ open: true, id: w.id, name: w.name })}>
-                      <DeleteIcon fontSize="small" />
+                    <IconButton size="small" color="error" disabled={deletingId === w.id}
+                      onClick={() => setConfirmDelete({ open: true, id: w.id, name: w.name })}>
+                      {deletingId === w.id ? <CircularProgress size={16} /> : <DeleteIcon fontSize="small" />}
                     </IconButton>
                   </TableCell>
                 </TableRow>
@@ -213,7 +219,7 @@ export default function CallWidgets() {
       )}
 
       {/* Create / Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={() => { if (!saving) setDialogOpen(false); }} maxWidth="sm" fullWidth>
         <DialogTitle>{editId ? t('button.edit') : t('button.create')} CallWidget</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
           <TextField label={t('field.name')} value={form.name}
@@ -290,8 +296,9 @@ export default function CallWidgets() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>{t('button.cancel')}</Button>
-          <Button variant="contained" onClick={save} disabled={!form.name || !form.target}>{t('button.save')}</Button>
+          <Button onClick={() => setDialogOpen(false)} disabled={saving}>{t('button.cancel')}</Button>
+          <Button variant="contained" onClick={save} disabled={saving || !form.name || !form.target}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : undefined}>{t('button.save')}</Button>
         </DialogActions>
       </Dialog>
 
@@ -336,10 +343,11 @@ export default function CallWidgets() {
       </Dialog>
 
       <ConfirmDialog open={confirmDelete.open} variant="delete"
+        loading={deletingId === confirmDelete.id}
         title={t('confirm.delete_title')}
         message={t('confirm.delete_message', { name: confirmDelete.name })}
         confirmLabel={t('button.delete')} cancelLabel={t('button.cancel')}
-        onConfirm={() => { remove(confirmDelete.id); setConfirmDelete({ open: false, id: 0, name: '' }); }}
+        onConfirm={() => remove(confirmDelete.id)}
         onCancel={() => setConfirmDelete({ open: false, id: 0, name: '' })} />
 
       <Toast open={toast.open} message={toast.message} severity={toast.severity}

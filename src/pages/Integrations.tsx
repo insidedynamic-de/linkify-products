@@ -62,6 +62,7 @@ export default function Integrations() {
   const [selectedInteg, setSelectedInteg] = useState<Integration | null>(null);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [confirmInstall, setConfirmInstall] = useState<{ open: boolean; name: string; action: (() => Promise<void>) | null }>({ open: false, name: '', action: null });
+  const [installing, setInstalling] = useState(false);
 
   const notifyLicenseChanged = () => window.dispatchEvent(new Event('license-changed'));
 
@@ -117,8 +118,15 @@ export default function Integrations() {
 
   const handleConfirmInstall = async () => {
     const a = confirmInstall.action;
+    if (a) {
+      setInstalling(true);
+      try {
+        await a();
+      } finally {
+        setInstalling(false);
+      }
+    }
     setConfirmInstall({ open: false, name: '', action: null });
-    if (a) await a();
   };
 
   const openDetail = (integ: Integration) => {
@@ -319,11 +327,11 @@ export default function Integrations() {
         })()}
       </Dialog>
 
-      <ConfirmDialog open={confirmInstall.open} variant="save"
+      <ConfirmDialog open={confirmInstall.open} variant="save" loading={installing}
         title={t('license.install_title')}
         message={t('license.install_message', { name: confirmInstall.name })}
         confirmLabel={t('license.install')} cancelLabel={t('button.cancel')}
-        onConfirm={handleConfirmInstall} onCancel={() => setConfirmInstall({ open: false, name: '', action: null })} />
+        onConfirm={handleConfirmInstall} onCancel={() => { if (!installing) setConfirmInstall({ open: false, name: '', action: null }); }} />
 
       <Toast open={toast.open} message={toast.message} severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} />
     </Box>

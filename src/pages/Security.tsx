@@ -8,7 +8,7 @@ import {
   Box, Typography, Card, CardContent, Tabs, Tab, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination,
   IconButton, TextField, Switch, FormControlLabel, Chip, Tooltip,
-  InputAdornment, LinearProgress,
+  InputAdornment, LinearProgress, CircularProgress,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -53,6 +53,12 @@ export default function Security() {
   const formDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
+  // In-flight request feedback
+  const [saving, setSaving] = useState(false);
+  const [togglingWhitelist, setTogglingWhitelist] = useState(false);
+  const [aclSaving, setAclSaving] = useState(false);
+  const [busyIp, setBusyIp] = useState<string | null>(null);
+
   // Auth monitoring state
   const [securityLogs, setSecurityLogs] = useState<SecurityLog[]>([]);
   const [secSearch, setSecSearch] = useState('');
@@ -95,6 +101,7 @@ export default function Security() {
   // ── Add / Edit entry ──
 
   const doSaveEntry = async () => {
+    setSaving(true);
     try {
       if (editIp) {
         await api.put(`/security/whitelist/${encodeURIComponent(editIp)}`, form);
@@ -106,7 +113,7 @@ export default function Security() {
       setDialogOpen(false);
       showToast(true);
       load();
-    } catch { showToast(false); }
+    } catch { showToast(false); } finally { setSaving(false); }
   };
   const saveEntry = () => setConfirmSave({ open: true, action: doSaveEntry });
 
@@ -115,26 +122,41 @@ export default function Security() {
   const requestRemoveBlacklist = (ip: string) => {
     setConfirmDelete({
       open: true, name: ip, action: async () => {
+        setSaving(true);
         try { await api.delete(`/security/blacklist/${encodeURIComponent(ip)}`); showToast(true); load(); }
-        catch { showToast(false); }
+        catch { showToast(false); } finally { setSaving(false); }
       },
     });
   };
 
   const sendToFail2ban = async (ip: string) => {
+    setBusyIp(ip);
     try {
       await api.post('/security/fail2ban/ban', { ip });
       showToast(true);
       load();
-    } catch { showToast(false); }
+    } catch { showToast(false); } finally { setBusyIp(null); }
   };
 
   const sendToFsFirewall = async (ip: string) => {
+    setBusyIp(ip);
     try {
       await api.post('/security/fs-firewall/ban', { ip });
       showToast(true);
       load();
-    } catch { showToast(false); }
+    } catch { showToast(false); } finally { setBusyIp(null); }
+  };
+
+  const unbanFail2ban = async (ip: string) => {
+    setBusyIp(ip);
+    try { await api.post('/security/fail2ban/unban', { ip }); showToast(true); load(); }
+    catch { showToast(false); } finally { setBusyIp(null); }
+  };
+
+  const addFromFail2ban = async (ip: string) => {
+    setBusyIp(ip);
+    try { await api.post('/security/blacklist', { ip, comment: 'Added from Fail2Ban' }); showToast(true); load(); }
+    catch { showToast(false); } finally { setBusyIp(null); }
   };
 
   // ── Whitelist actions ──
@@ -142,8 +164,9 @@ export default function Security() {
   const requestRemoveWhitelist = (ip: string) => {
     setConfirmDelete({
       open: true, name: ip, action: async () => {
+        setSaving(true);
         try { await api.delete(`/security/whitelist/${encodeURIComponent(ip)}`); showToast(true); load(); }
-        catch { showToast(false); }
+        catch { showToast(false); } finally { setSaving(false); }
       },
     });
   };
@@ -168,13 +191,15 @@ export default function Security() {
   })();
 
   const toggleWhitelist = async () => {
+    setTogglingWhitelist(true);
     try {
       await api.put('/security/whitelist/toggle', { enabled: !whitelistEnabled });
       setWhitelistEnabled(!whitelistEnabled);
-    } catch { showToast(false); }
+    } catch { showToast(false); } finally { setTogglingWhitelist(false); }
   };
 
   const doSaveSecuritySettings = async () => {
+    setSaving(true);
     try {
       await Promise.all([
         api.put('/security/auto-blacklist', autoBlacklist),
@@ -182,7 +207,7 @@ export default function Security() {
       ]);
       await api.post('/config/apply');
       showToast(true);
-    } catch { showToast(false); }
+    } catch { showToast(false); } finally { setSaving(false); }
   };
   const saveSecuritySettings = () => setConfirmSave({ open: true, action: doSaveSecuritySettings });
 
@@ -205,7 +230,9 @@ export default function Security() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5">{t('nav.security')}</Typography>
-        <Button variant="contained" startIcon={<SaveIcon />} onClick={saveSecuritySettings}>{t('button.save_reload')}</Button>
+        <Button variant="contained" disabled={saving}
+          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+          onClick={saveSecuritySettings}>{t('button.save_reload')}</Button>
       </Box>
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
@@ -246,10 +273,16 @@ export default function Security() {
         const pagedIps = filteredIps.slice(secPage * secRowsPerPage, secPage * secRowsPerPage + secRowsPerPage);
 
         const quickBlock = async (ip: string) => {
-          try { await api.post('/security/blacklist', { ip, comment: 'Blocked from auth monitoring' }); showToast(true); load(); } catch { showToast(false); }
+          setBusyIp(ip);
+          try { await api.post('/security/blacklist', { ip, comment: 'Blocked from auth monitoring' }); showToast(true); load(); } catch { showToast(false); } finally { setBusyIp(null); }
         };
         const quickAllow = async (ip: string) => {
-          try { await api.post('/security/whitelist', { ip, comment: 'Allowed from auth monitoring' }); showToast(true); load(); } catch { showToast(false); }
+          setBusyIp(ip);
+          try { await api.post('/security/whitelist', { ip, comment: 'Allowed from auth monitoring' }); showToast(true); load(); } catch { showToast(false); } finally { setBusyIp(null); }
+        };
+        const quickUnblock = async (ip: string) => {
+          setBusyIp(ip);
+          try { await api.delete(`/security/blacklist/${ip}`); showToast(true); load(); } catch { showToast(false); } finally { setBusyIp(null); }
         };
 
         return (
@@ -320,19 +353,23 @@ export default function Security() {
                             <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                               {blocked && (
                                 <Tooltip title={t('security.unblock_ip')}>
-                                  <IconButton size="small" color="warning" onClick={async () => {
-                                    try { await api.delete(`/security/blacklist/${ip}`); showToast(true); load(); } catch { showToast(false); }
-                                  }}><LockOpenIcon fontSize="small" /></IconButton>
+                                  <IconButton size="small" color="warning" disabled={busyIp === ip} onClick={() => quickUnblock(ip)}>
+                                    {busyIp === ip ? <CircularProgress size={16} color="inherit" /> : <LockOpenIcon fontSize="small" />}
+                                  </IconButton>
                                 </Tooltip>
                               )}
                               {!blocked && (
                                 <Tooltip title={t('security.block_ip')}>
-                                  <IconButton size="small" color="error" onClick={() => quickBlock(ip)}><BlockIcon fontSize="small" /></IconButton>
+                                  <IconButton size="small" color="error" disabled={busyIp === ip} onClick={() => quickBlock(ip)}>
+                                    {busyIp === ip ? <CircularProgress size={16} color="inherit" /> : <BlockIcon fontSize="small" />}
+                                  </IconButton>
                                 </Tooltip>
                               )}
                               {!allowed && !blocked && (
                                 <Tooltip title={t('security.allow_ip')}>
-                                  <IconButton size="small" color="success" onClick={() => quickAllow(ip)}><CheckCircleOutlineIcon fontSize="small" /></IconButton>
+                                  <IconButton size="small" color="success" disabled={busyIp === ip} onClick={() => quickAllow(ip)}>
+                                    {busyIp === ip ? <CircularProgress size={16} color="inherit" /> : <CheckCircleOutlineIcon fontSize="small" />}
+                                  </IconButton>
                                 </Tooltip>
                               )}
                               {!blocked && (
@@ -424,34 +461,32 @@ export default function Security() {
                       <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                         {!e.fail2ban_banned && (
                           <Tooltip title={t('security.send_to_fail2ban')}>
-                            <IconButton size="small" color="warning" onClick={() => sendToFail2ban(e.ip)}>
-                              <LocalFireDepartmentIcon fontSize="small" />
+                            <IconButton size="small" color="warning" disabled={busyIp === e.ip} onClick={() => sendToFail2ban(e.ip)}>
+                              {busyIp === e.ip ? <CircularProgress size={16} color="inherit" /> : <LocalFireDepartmentIcon fontSize="small" />}
                             </IconButton>
                           </Tooltip>
                         )}
                         {e.fail2ban_banned && (
                           <Tooltip title="Fail2Ban Unban">
-                            <IconButton size="small" color="warning" onClick={async () => {
-                              try { await api.post('/security/fail2ban/unban', { ip: e.ip }); showToast(true); load(); } catch { showToast(false); }
-                            }}><LockOpenIcon fontSize="small" /></IconButton>
+                            <IconButton size="small" color="warning" disabled={busyIp === e.ip} onClick={() => unbanFail2ban(e.ip)}>
+                              {busyIp === e.ip ? <CircularProgress size={16} color="inherit" /> : <LockOpenIcon fontSize="small" />}
+                            </IconButton>
                           </Tooltip>
                         )}
                         {!e.f2b_only && !e.fs_firewall_blocked && (
                           <Tooltip title={t('security.send_to_fs_firewall')}>
-                            <IconButton size="small" color="info" onClick={() => sendToFsFirewall(e.ip)}>
-                              <ShieldIcon fontSize="small" />
+                            <IconButton size="small" color="info" disabled={busyIp === e.ip} onClick={() => sendToFsFirewall(e.ip)}>
+                              {busyIp === e.ip ? <CircularProgress size={16} color="inherit" /> : <ShieldIcon fontSize="small" />}
                             </IconButton>
                           </Tooltip>
                         )}
                         {!e.f2b_only && (
-                          <IconButton size="small" color="error" onClick={() => requestRemoveBlacklist(e.ip)}><DeleteIcon fontSize="small" /></IconButton>
+                          <IconButton size="small" color="error" disabled={busyIp === e.ip} onClick={() => requestRemoveBlacklist(e.ip)}><DeleteIcon fontSize="small" /></IconButton>
                         )}
                         {e.f2b_only && (
                           <Tooltip title={t('security.block_ip')}>
-                            <IconButton size="small" color="primary" onClick={async () => {
-                              try { await api.post('/security/blacklist', { ip: e.ip, comment: 'Added from Fail2Ban' }); showToast(true); load(); } catch { showToast(false); }
-                            }}>
-                              <BlockIcon fontSize="small" />
+                            <IconButton size="small" color="primary" disabled={busyIp === e.ip} onClick={() => addFromFail2ban(e.ip)}>
+                              {busyIp === e.ip ? <CircularProgress size={16} color="inherit" /> : <BlockIcon fontSize="small" />}
                             </IconButton>
                           </Tooltip>
                         )}
@@ -474,7 +509,7 @@ export default function Security() {
               <Box>
                 <Typography variant="h6">{t('security.allowed_ips')}</Typography>
                 <FormControlLabel
-                  control={<Switch checked={whitelistEnabled} onChange={toggleWhitelist} />}
+                  control={<Switch checked={whitelistEnabled} disabled={togglingWhitelist} onChange={toggleWhitelist} />}
                   label={t('security.enable_whitelist')}
                 />
               </Box>
@@ -583,6 +618,7 @@ export default function Security() {
         open={dialogOpen}
         title={dialogTitle()}
         dirty={formDirty}
+        loading={saving}
         onClose={() => setDialogOpen(false)}
         onSave={saveEntry}
         saveLabel={editIp ? t('button.save') : (dialogType === 'blacklist' ? t('button.block') : t('button.allow'))}
@@ -593,12 +629,12 @@ export default function Security() {
         <TextField label={t('security.comment_optional')} value={form.comment} onChange={(e) => setForm({ ...form, comment: e.target.value })} />
       </FormDialog>
 
-      <ConfirmDialog open={confirmSave.open} variant="save"
+      <ConfirmDialog open={confirmSave.open} variant="save" loading={saving}
         title={t('confirm.save_title')} message={t('confirm.save_message')}
         confirmLabel={t('button.save')} cancelLabel={t('button.cancel')}
         onConfirm={handleConfirmSave} onCancel={() => setConfirmSave({ open: false, action: null })} />
 
-      <ConfirmDialog open={confirmDelete.open} variant="delete"
+      <ConfirmDialog open={confirmDelete.open} variant="delete" loading={saving}
         title={t('confirm.delete_title')}
         message={t('confirm.delete_message', { name: confirmDelete.name })}
         confirmLabel={t('button.delete')} cancelLabel={t('button.cancel')}
@@ -609,13 +645,15 @@ export default function Security() {
         open={aclDialogOpen}
         title={t('modal.add_acl_user')}
         dirty={!!(aclForm.username || aclForm.extension)}
+        loading={aclSaving}
         onClose={() => { setAclDialogOpen(false); setAclIp(''); setAclForm({ username: '', extension: '', caller_id: '' }); }}
         onSave={async () => {
+          setAclSaving(true);
           try {
             await api.post('/acl-users', { ...aclForm, ip: aclIp });
             setAclDialogOpen(false); setAclIp(''); setAclForm({ username: '', extension: '', caller_id: '' });
             showToast(true);
-          } catch { showToast(false); }
+          } catch { showToast(false); } finally { setAclSaving(false); }
         }}
         saveLabel={t('button.add')}
       >

@@ -8,7 +8,7 @@ import {
   Box, Card, CardContent, Typography, Tabs, Tab,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination,
   LinearProgress, Chip, IconButton, Tooltip, TextField, InputAdornment,
-  Dialog, DialogTitle, DialogContent, FormControlLabel, Checkbox,
+  Dialog, DialogTitle, DialogContent, FormControlLabel, Checkbox, CircularProgress,
 } from '@mui/material';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import MemoryIcon from '@mui/icons-material/Memory';
@@ -94,6 +94,8 @@ export default function Monitoring() {
   const [secSearch, setSecSearch] = useState('');
   const [secPage, setSecPage] = useState(0);
   const [secRowsPerPage, setSecRowsPerPage] = useState(10);
+  const [busyIp, setBusyIp] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Card visibility (overview tab)
   const [hiddenCards, setHiddenCards] = useState<Set<string>>(loadHiddenMonCards);
@@ -557,18 +559,20 @@ export default function Monitoring() {
         const pagedIps = filteredIps.slice(secPage * secRowsPerPage, secPage * secRowsPerPage + secRowsPerPage);
 
         const quickBlock = async (ip: string) => {
+          setBusyIp(ip);
           try {
             await api.post('/security/blacklist', { ip, comment: `Auto-blocked: ${threshold}+ failed attempts` });
             showToast(true);
             refresh();
-          } catch { showToast(false); }
+          } catch { showToast(false); } finally { setBusyIp(null); }
         };
         const quickAllow = async (ip: string) => {
+          setBusyIp(ip);
           try {
             await api.post('/security/whitelist', { ip, comment: 'Allowed from monitoring' });
             showToast(true);
             refresh();
-          } catch { showToast(false); }
+          } catch { showToast(false); } finally { setBusyIp(null); }
         };
 
         return (
@@ -633,15 +637,15 @@ export default function Monitoring() {
                             <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                               {!blocked && (
                                 <Tooltip title={t('security.block_ip')}>
-                                  <IconButton size="small" color="error" onClick={() => quickBlock(ip)}>
-                                    <BlockIcon fontSize="small" />
+                                  <IconButton size="small" color="error" disabled={busyIp === ip} onClick={() => quickBlock(ip)}>
+                                    {busyIp === ip ? <CircularProgress size={16} color="inherit" /> : <BlockIcon fontSize="small" />}
                                   </IconButton>
                                 </Tooltip>
                               )}
                               {!allowed && !blocked && (
                                 <Tooltip title={t('security.allow_ip')}>
-                                  <IconButton size="small" color="success" onClick={() => quickAllow(ip)}>
-                                    <CheckCircleOutlineIcon fontSize="small" />
+                                  <IconButton size="small" color="success" disabled={busyIp === ip} onClick={() => quickAllow(ip)}>
+                                    {busyIp === ip ? <CircularProgress size={16} color="inherit" /> : <CheckCircleOutlineIcon fontSize="small" />}
                                   </IconButton>
                                 </Tooltip>
                               )}
@@ -689,13 +693,15 @@ export default function Monitoring() {
         title={t('modal.add_acl_user')}
         dirty={!!(aclForm.username || aclForm.extension)}
         onClose={() => { setAclDialog({ open: false, ip: '' }); setAclForm({ username: '', extension: '', caller_id: '' }); }}
+        loading={saving}
         onSave={async () => {
+          setSaving(true);
           try {
             await api.post('/acl-users', { ...aclForm, ip: aclDialog.ip });
             setAclDialog({ open: false, ip: '' });
             setAclForm({ username: '', extension: '', caller_id: '' });
             showToast(true);
-          } catch { showToast(false); }
+          } catch { showToast(false); } finally { setSaving(false); }
         }}
         saveLabel={t('button.add')}
       >

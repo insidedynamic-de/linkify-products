@@ -71,6 +71,7 @@ export default function Users() {
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; name: string }>({ open: false, name: '' });
   const [confirmSave, setConfirmSave] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [busyExtension, setBusyExtension] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -297,6 +298,7 @@ export default function Users() {
   // ── Toggle enabled ──
 
   const toggleEnabled = async (row: MergedRow) => {
+    setBusyExtension(row.extension);
     try {
       const newEnabled = !row.enabled;
       await api.put(`/extensions/${row.extension}`, { enabled: newEnabled });
@@ -306,6 +308,8 @@ export default function Users() {
       emitConfigChanged();
     } catch (err) {
       setToast({ open: true, message: extractError(err), severity: 'error' });
+    } finally {
+      setBusyExtension(null);
     }
   };
 
@@ -367,6 +371,7 @@ export default function Users() {
       <CrudTable<MergedRow>
         rows={mergedRows}
         getKey={(r) => `${r.type}-${r.extension}`}
+        busyRow={busyExtension}
         columns={[
           { id: 'extension', header: t('field.extension'), field: 'extension', width: 90 },
           {
@@ -439,6 +444,7 @@ export default function Users() {
         readOnly={viewMode}
         title={dialogTitle()}
         dirty={formDirty}
+        loading={saving}
         onClose={() => setDialogOpen(false)}
         onSave={requestSave}
       >
@@ -545,13 +551,13 @@ export default function Users() {
       <ConfirmDialog open={confirmSave} variant="save" loading={saving}
         title={t('confirm.save_title')} message={t('confirm.save_message')}
         confirmLabel={t('button.save')} cancelLabel={t('button.cancel')}
-        onConfirm={doSave} onCancel={() => setConfirmSave(false)} />
+        onConfirm={doSave} onCancel={() => !saving && setConfirmSave(false)} />
 
       <ConfirmDialog open={confirmDelete.open} variant="delete"
         title={t('confirm.delete_title')}
         message={t('confirm.delete_message', { name: confirmDelete.name })}
         confirmLabel={t('button.delete')} cancelLabel={t('button.cancel')} loading={saving}
-        onConfirm={doDelete} onCancel={() => setConfirmDelete({ open: false, name: '' })} />
+        onConfirm={doDelete} onCancel={() => !saving && setConfirmDelete({ open: false, name: '' })} />
 
       <Toast open={toast.open} message={toast.message} severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} />
     </Box>

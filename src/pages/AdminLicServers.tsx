@@ -51,6 +51,8 @@ export default function AdminLicServers() {
   const [importOpen, setImportOpen] = useState(false);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<number | null>(null);
   const [testing, setTesting] = useState<number | null>(null);
   const [testResult, setTestResult] = useState<Record<number, boolean>>({});
   const [unlinked, setUnlinked] = useState<UnlinkedClient[]>([]);
@@ -69,6 +71,7 @@ export default function AdminLicServers() {
   useEffect(() => { fetchServers(); }, [fetchServers]);
 
   const handleCreate = async () => {
+    setSaving(true);
     try {
       const res = await api.post('/admin/licservers', form);
       setToast({ open: true, message: `Created. Connection: ${res.data.connection_ok ? 'OK' : 'FAILED'}`, severity: res.data.connection_ok ? 'success' : 'error' });
@@ -78,10 +81,13 @@ export default function AdminLicServers() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setToast({ open: true, message: e?.response?.data?.detail || 'Error', severity: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleEdit = async () => {
+    setSaving(true);
     try {
       await api.put(`/admin/licservers/${editId}`, form);
       setToast({ open: true, message: 'Saved', severity: 'success' });
@@ -90,16 +96,23 @@ export default function AdminLicServers() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setToast({ open: true, message: e?.response?.data?.detail || 'Error', severity: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async (id: number, name: string) => {
     if (!confirm(`Delete LicServer "${name}"? Links to tenants will be removed.`)) return;
+    setDeleting(id);
     try {
       await api.delete(`/admin/licservers/${id}`);
       setToast({ open: true, message: 'Deleted', severity: 'success' });
       fetchServers();
-    } catch { setToast({ open: true, message: 'Error', severity: 'error' }); }
+    } catch {
+      setToast({ open: true, message: 'Error', severity: 'error' });
+    } finally {
+      setDeleting(null);
+    }
   };
 
   const handleTest = async (id: number) => {
@@ -213,8 +226,8 @@ export default function AdminLicServers() {
                     <IconButton size="small" onClick={() => { setEditId(s.id); setForm({ name: s.name, url: s.url, console_key: s.console_key_full, product_type: s.product_type }); setEditOpen(true); }}>
                       <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" color="error" onClick={() => handleDelete(s.id, s.name)}>
-                      <DeleteIcon fontSize="small" />
+                    <IconButton size="small" color="error" onClick={() => handleDelete(s.id, s.name)} disabled={deleting !== null}>
+                      {deleting === s.id ? <CircularProgress size={16} color="inherit" /> : <DeleteIcon fontSize="small" />}
                     </IconButton>
                   </Box>
                 </CardContent>
@@ -226,7 +239,7 @@ export default function AdminLicServers() {
 
       {/* Create / Edit Dialog */}
       {(createOpen || editOpen) && (
-        <Dialog open onClose={() => { setCreateOpen(false); setEditOpen(false); }} maxWidth="sm" fullWidth>
+        <Dialog open onClose={saving ? undefined : () => { setCreateOpen(false); setEditOpen(false); }} maxWidth="sm" fullWidth>
           <DialogTitle>{createOpen ? 'Add LicServer' : 'Edit LicServer'}</DialogTitle>
           <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
             <TextField size="small" label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
@@ -236,8 +249,9 @@ export default function AdminLicServers() {
             <TextField size="small" label="Product Type (optional)" value={form.product_type} onChange={(e) => setForm({ ...form, product_type: e.target.value })} placeholder="linkify, neyto, etc." />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => { setCreateOpen(false); setEditOpen(false); }}>{t('button.cancel')}</Button>
-            <Button variant="contained" onClick={createOpen ? handleCreate : handleEdit}>{createOpen ? t('button.add') : t('button.save')}</Button>
+            <Button onClick={() => { setCreateOpen(false); setEditOpen(false); }} disabled={saving}>{t('button.cancel')}</Button>
+            <Button variant="contained" onClick={createOpen ? handleCreate : handleEdit} disabled={saving}
+              startIcon={saving ? <CircularProgress size={16} color="inherit" /> : undefined}>{createOpen ? t('button.add') : t('button.save')}</Button>
           </DialogActions>
         </Dialog>
       )}

@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Box, Typography, Card, CardContent, TextField, Button,
-  Switch, FormControlLabel,
+  Switch, FormControlLabel, CircularProgress,
 } from '@mui/material';
 import Grid from '@mui/material/Grid2';
 import SaveIcon from '@mui/icons-material/Save';
@@ -28,6 +28,7 @@ export default function BillingTab() {
 
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [confirmSave, setConfirmSave] = useState<{ open: boolean; action: (() => Promise<void>) | null }>({ open: false, action: null });
+  const [saving, setSaving] = useState(false);
 
   const showToast = (msg: string, ok: boolean) => setToast({ open: true, message: msg, severity: ok ? 'success' : 'error' });
 
@@ -75,8 +76,14 @@ export default function BillingTab() {
   // Confirm handler
   const handleConfirmSave = async () => {
     const a = confirmSave.action;
-    setConfirmSave({ open: false, action: null });
-    if (a) await a();
+    if (!a) return;
+    setSaving(true);
+    try {
+      await a();
+    } finally {
+      setSaving(false);
+      setConfirmSave({ open: false, action: null });
+    }
   };
 
   return (
@@ -118,7 +125,8 @@ export default function BillingTab() {
                 onChange={(e) => setCompany({ ...company, company_city: e.target.value })} />
             </Grid>
           </Grid>
-          <Button variant="contained" startIcon={<SaveIcon />} sx={{ mt: 2 }} onClick={saveCompany}>
+          <Button variant="contained" startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+            sx={{ mt: 2 }} onClick={saveCompany} disabled={saving}>
             {t('button.save_reload')}
           </Button>
         </CardContent>
@@ -163,13 +171,14 @@ export default function BillingTab() {
               </Grid>
             </Grid>
           )}
-          <Button variant="contained" startIcon={<SaveIcon />} sx={{ mt: 2 }} onClick={saveInvoice}>
+          <Button variant="contained" startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+            sx={{ mt: 2 }} onClick={saveInvoice} disabled={saving}>
             {t('button.save_reload')}
           </Button>
         </CardContent>
       </Card>
 
-      <ConfirmDialog open={confirmSave.open} variant="save"
+      <ConfirmDialog open={confirmSave.open} variant="save" loading={saving}
         title={t('confirm.save_title')} message={t('confirm.save_message')}
         confirmLabel={t('button.save')} cancelLabel={t('button.cancel')}
         onConfirm={handleConfirmSave} onCancel={() => setConfirmSave({ open: false, action: null })} />

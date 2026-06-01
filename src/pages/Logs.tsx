@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Box, Typography, Card, CardContent, Chip, Button, Tabs, Tab,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  TablePagination, TextField, InputAdornment,
+  TablePagination, TextField, InputAdornment, CircularProgress,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -103,6 +103,7 @@ export default function Logs() {
   const lastTs = useRef(0);
   const [eslPage, setEslPage] = useState(0);
   const [eslRowsPerPage, setEslRowsPerPage] = useState(250);
+  const [eslBusy, setEslBusy] = useState(false);
 
   // Call logs
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
@@ -207,9 +208,28 @@ export default function Logs() {
     return '\u2014';
   }, [routes, userList]);
 
-  const start = () => api.post('/esl/start').then(() => loadEsl());
-  const stop = () => api.post('/esl/stop').then(() => loadEsl());
-  const clear = () => { api.post('/esl/clear'); setEvents([]); lastTs.current = 0; };
+  const start = async () => {
+    setEslBusy(true);
+    try {
+      await api.post('/esl/start');
+      await loadEsl();
+    } catch { /* ignore */ } finally { setEslBusy(false); }
+  };
+  const stop = async () => {
+    setEslBusy(true);
+    try {
+      await api.post('/esl/stop');
+      await loadEsl();
+    } catch { /* ignore */ } finally { setEslBusy(false); }
+  };
+  const clear = async () => {
+    setEslBusy(true);
+    try {
+      await api.post('/esl/clear');
+      setEvents([]);
+      lastTs.current = 0;
+    } catch { /* ignore */ } finally { setEslBusy(false); }
+  };
 
   const filteredEvents = events.filter((e) => {
     if (levelFilter !== 'all' && e.level !== levelFilter) return false;
@@ -254,15 +274,15 @@ export default function Logs() {
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
               {status?.running ? (
-                <Button size="small" variant="outlined" color="error" startIcon={<StopIcon />} onClick={stop}>
+                <Button size="small" variant="outlined" color="error" disabled={eslBusy} startIcon={eslBusy ? <CircularProgress size={16} /> : <StopIcon />} onClick={stop}>
                   Stop
                 </Button>
               ) : (
-                <Button size="small" variant="contained" startIcon={<PlayArrowIcon />} onClick={start}>
+                <Button size="small" variant="contained" disabled={eslBusy} startIcon={eslBusy ? <CircularProgress size={16} /> : <PlayArrowIcon />} onClick={start}>
                   Start
                 </Button>
               )}
-              <Button size="small" variant="outlined" startIcon={<DeleteSweepIcon />} onClick={clear}>
+              <Button size="small" variant="outlined" disabled={eslBusy} startIcon={eslBusy ? <CircularProgress size={16} /> : <DeleteSweepIcon />} onClick={clear}>
                 Clear
               </Button>
               <Button size="small" variant="outlined" startIcon={<ContentCopyIcon />} onClick={() => {

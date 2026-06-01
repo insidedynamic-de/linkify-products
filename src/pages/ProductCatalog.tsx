@@ -130,8 +130,9 @@ export default function ProductCatalog() {
         message: axiosErr?.response?.data?.detail || t('status.error'),
         severity: 'error',
       });
+    } finally {
+      setActivating('');
     }
-    setActivating('');
   };
 
   const handleActivateProduct = async (product: string) => {
@@ -147,8 +148,9 @@ export default function ProductCatalog() {
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
       setToast({ open: true, message: axiosErr?.response?.data?.detail || t('status.error'), severity: 'error' });
+    } finally {
+      setActivating('');
     }
-    setActivating('');
   };
 
   if (loading) {

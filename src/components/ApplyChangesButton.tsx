@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@mui/material';
+import { Button, CircularProgress } from '@mui/material';
 import SyncIcon from '@mui/icons-material/Sync';
 import api from '../api/client';
 import ConfirmDialog from './ConfirmDialog';
@@ -13,15 +13,19 @@ import Toast from './Toast';
 export default function ApplyChangesButton() {
   const { t } = useTranslation();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
   const doApply = async () => {
-    setConfirmOpen(false);
+    setSaving(true);
     try {
       const res = await api.post('/config/apply');
       setToast({ open: true, message: res.data?.message || t('status.success'), severity: res.data?.success ? 'success' : 'error' });
+      setConfirmOpen(false);
     } catch {
       setToast({ open: true, message: t('status.error'), severity: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 

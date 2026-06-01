@@ -4,7 +4,7 @@
  */
 import { useTranslation } from 'react-i18next';
 import {
-  Card, CardContent, Typography, Box, Checkbox, FormControlLabel, Chip, Divider,
+  Card, CardContent, Typography, Box, Checkbox, FormControlLabel, Chip, Divider, TextField,
 } from '@mui/material';
 
 /** Audio codecs available */
@@ -48,9 +48,11 @@ const CELL_SX = {
 interface Props {
   codecPrefs: string;
   onChange: (value: string) => void;
+  readGain?: number;
+  onReadGainChange?: (value: number) => void;
 }
 
-export default function CodecCard({ codecPrefs, onChange }: Props) {
+export default function CodecCard({ codecPrefs, onChange, readGain = 0, onReadGainChange }: Props) {
   const { t } = useTranslation();
 
   const activeCodecs = new Set(
@@ -96,19 +98,36 @@ export default function CodecCard({ codecPrefs, onChange }: Props) {
   return (
     <Card sx={{ mb: 3 }}>
       <CardContent sx={{ px: 4, py: 3 }}>
-        <Typography variant="h6" sx={{ mb: 1 }}>{t('system.codec_prefs')}</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {t('system.codec_prefs_desc')}
-        </Typography>
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>{t('system.codec_prefs')}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {t('system.codec_prefs_desc')}
+          </Typography>
 
-        {/* Active codecs as ordered chips */}
-        {activeCodecs.size > 0 && (
-          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
-            {ALL_CODECS.filter((c) => activeCodecs.has(c.id)).map((c, idx) => (
-              <Chip key={c.id} label={`${idx + 1}. ${c.label}`} size="small" color="primary" variant="outlined" />
-            ))}
-          </Box>
-        )}
+          {/* Active codecs as ordered chips */}
+          {activeCodecs.size > 0 && (
+            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
+              {ALL_CODECS.filter((c) => activeCodecs.has(c.id)).map((c, idx) => (
+                <Chip key={c.id} label={`${idx + 1}. ${c.label}`} size="small" color="primary" variant="outlined" />
+              ))}
+            </Box>
+          )}
+        </Box>
+
+        <Box sx={{ mb: 3, pb: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>{t('system.read_gain')}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {t('system.read_gain_desc')}
+          </Typography>
+          <TextField
+            type="number"
+            value={readGain}
+            onChange={(e) => onReadGainChange?.(Number(e.target.value))}
+            inputProps={{ min: 0, max: 15, step: 1 }}
+            size="small"
+            sx={{ width: 120 }}
+          />
+        </Box>
 
         <Divider sx={{ my: 2 }} />
 

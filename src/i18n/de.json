@@ -426,6 +426,7 @@
     "internal_sip_port": "Interner SIP-Port", "internal_port_desc": "Lokale Benutzer (Standard: 5060)",
     "external_sip_port": "Externer SIP-Port", "external_port_desc": "Provider / Trunk (Standard: 5080)",
     "codec_prefs": "Codec-Präferenzen", "codec_prefs_desc": "Audio-/Video-Codecs auswählen. Reihenfolge bestimmt Verhandlungspriorität.",
+    "read_gain": "Eingangsverstärkung (dB)", "read_gain_desc": "Verstärkt das Audio des Anrufers, damit der Assistent ihn besser versteht. 0 = aus, ~8 empfohlen.",
     "default_country": "Standard-Ländercode",
     "outbound_caller_id": "Ausgehende Anrufer-ID", "save_settings": "Einstellungen speichern",
     "esl_settings": "Log-Stream", "esl_password": "Passwort", "esl_test": "Verbindung testen",

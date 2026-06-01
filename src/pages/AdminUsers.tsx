@@ -60,6 +60,8 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deactivatingId, setDeactivatingId] = useState<number | null>(null);
   const [editUser, setEditUser] = useState<Record<string, string | number | boolean | null>>({});
   const [newUser, setNewUser] = useState({ email: '', password: '', name: '', user_type: 'user', tenant_id: 0 });
   const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
@@ -79,14 +81,17 @@ export default function AdminUsers() {
 
   const handleDeactivate = async (userId: number) => {
     if (!confirm('Deactivate user?')) return;
+    setDeactivatingId(userId);
     try {
       await api.delete(`/admin/users/${userId}`);
       setToast({ open: true, message: 'User deactivated', severity: 'success' });
       fetchData();
     } catch { setToast({ open: true, message: 'Error', severity: 'error' }); }
+    finally { setDeactivatingId(null); }
   };
 
   const handleSave = async () => {
+    setSaving(true);
     try {
       await api.put(`/admin/users/${editUser.id}`, editUser);
       setToast({ open: true, message: 'Saved', severity: 'success' });
@@ -95,10 +100,13 @@ export default function AdminUsers() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setToast({ open: true, message: e?.response?.data?.detail || 'Error', severity: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleCreate = async () => {
+    setSaving(true);
     try {
       await api.post('/admin/users', newUser);
       setToast({ open: true, message: 'User created', severity: 'success' });
@@ -108,6 +116,8 @@ export default function AdminUsers() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setToast({ open: true, message: e?.response?.data?.detail || 'Error', severity: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -175,7 +185,9 @@ export default function AdminUsers() {
                   </Tooltip>
                   {u.is_active && u.id !== currentUser?.user_id && (
                     <Tooltip title="Deactivate">
-                      <IconButton size="small" color="error" onClick={() => handleDeactivate(u.id)}><PersonOffIcon fontSize="small" /></IconButton>
+                      <IconButton size="small" color="error" disabled={deactivatingId === u.id} onClick={() => handleDeactivate(u.id)}>
+                        {deactivatingId === u.id ? <CircularProgress size={16} color="inherit" /> : <PersonOffIcon fontSize="small" />}
+                      </IconButton>
                     </Tooltip>
                   )}
                 </TableCell>
@@ -186,7 +198,7 @@ export default function AdminUsers() {
       </TableContainer>
 
       {/* Edit Dialog */}
-      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={editOpen} onClose={saving ? undefined : () => setEditOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Edit User #{editUser.id}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
           <TextField size="small" label={t('auth.email')} value={editUser.email || ''} onChange={(e) => setEditUser({ ...editUser, email: e.target.value })} />
@@ -227,13 +239,13 @@ export default function AdminUsers() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditOpen(false)}>{t('button.cancel')}</Button>
-          <Button variant="contained" onClick={handleSave}>{t('button.save')}</Button>
+          <Button onClick={() => setEditOpen(false)} disabled={saving}>{t('button.cancel')}</Button>
+          <Button variant="contained" onClick={handleSave} disabled={saving} startIcon={saving ? <CircularProgress size={16} color="inherit" /> : undefined}>{t('button.save')}</Button>
         </DialogActions>
       </Dialog>
 
       {/* Create Dialog */}
-      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={createOpen} onClose={saving ? undefined : () => setCreateOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>{t('button.add')} User</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
           <FormControl size="small">
@@ -282,8 +294,8 @@ export default function AdminUsers() {
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateOpen(false)}>{t('button.cancel')}</Button>
-          <Button variant="contained" onClick={handleCreate}>{t('button.add')}</Button>
+          <Button onClick={() => setCreateOpen(false)} disabled={saving}>{t('button.cancel')}</Button>
+          <Button variant="contained" onClick={handleCreate} disabled={saving} startIcon={saving ? <CircularProgress size={16} color="inherit" /> : undefined}>{t('button.add')}</Button>
         </DialogActions>
       </Dialog>
 

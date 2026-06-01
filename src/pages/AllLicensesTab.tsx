@@ -4,7 +4,7 @@
  */
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Box, Typography, Chip, IconButton, Tooltip, Alert } from '@mui/material';
+import { Box, Typography, Chip, IconButton, Tooltip, Alert, CircularProgress } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import api from '../api/client';
 import CrudTable from '../components/CrudTable';
@@ -37,6 +37,8 @@ export default function AllLicensesTab() {
   const [unavailable, setUnavailable] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [confirmInstall, setConfirmInstall] = useState<{ open: boolean; name: string; action: (() => Promise<void>) | null }>({ open: false, name: '', action: null });
+  const [installing, setInstalling] = useState(false);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const notifyLicenseChanged = () => window.dispatchEvent(new Event('license-changed'));
 
@@ -64,6 +66,8 @@ export default function AllLicensesTab() {
       open: true,
       name: `${l.license_name} (${l.license_key})`,
       action: async () => {
+        setInstalling(true);
+        setBusyKey(l.license_key);
         try {
           await api.put('/license', { license_key: l.license_key });
           setToast({ open: true, message: t('status.success'), severity: 'success' });
@@ -77,6 +81,9 @@ export default function AllLicensesTab() {
           } else {
             setToast({ open: true, message: t('status.error'), severity: 'error' });
           }
+        } finally {
+          setInstalling(false);
+          setBusyKey(null);
         }
       },
     });
@@ -84,8 +91,8 @@ export default function AllLicensesTab() {
 
   const handleConfirmInstall = async () => {
     const a = confirmInstall.action;
-    setConfirmInstall({ open: false, name: '', action: null });
     if (a) await a();
+    setConfirmInstall({ open: false, name: '', action: null });
   };
 
   return (
@@ -134,8 +141,8 @@ export default function AllLicensesTab() {
             ) : (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Tooltip title={t('license.install')}>
-                  <IconButton size="small" color="success" onClick={() => requestInstall(l)}>
-                    <AddCircleOutlineIcon fontSize="small" />
+                  <IconButton size="small" color="success" onClick={() => requestInstall(l)} disabled={busyKey === l.license_key}>
+                    {busyKey === l.license_key ? <CircularProgress size={16} /> : <AddCircleOutlineIcon fontSize="small" />}
                   </IconButton>
                 </Tooltip>
               </Box>
@@ -152,7 +159,7 @@ export default function AllLicensesTab() {
         dimDisabled
       />
 
-      <ConfirmDialog open={confirmInstall.open} variant="save"
+      <ConfirmDialog open={confirmInstall.open} variant="save" loading={installing}
         title={t('license.install_title')}
         message={t('license.install_message', { name: confirmInstall.name })}
         confirmLabel={t('license.install')} cancelLabel={t('button.cancel')}

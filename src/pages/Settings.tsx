@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Box, Typography, Card, CardContent, Button,
-  TextField, Divider,
+  TextField, Divider, CircularProgress,
 } from '@mui/material';
 import Grid from '@mui/material/Grid2';
 import SaveIcon from '@mui/icons-material/Save';
@@ -21,6 +21,8 @@ export default function Settings() {
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [confirmSave, setConfirmSave] = useState<{ open: boolean; action: (() => Promise<void>) | null }>({ open: false, action: null });
   const [confirmReset, setConfirmReset] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const demo = isDemoMode();
 
   const load = useCallback(async () => {
@@ -31,12 +33,15 @@ export default function Settings() {
   useEffect(() => { load(); }, [load]);
 
   const doSave = async () => {
+    setSaving(true);
     try {
       await api.put('/settings', settings);
       await api.post('/config/apply');
       setToast({ open: true, message: t('status.success'), severity: 'success' });
     } catch {
       setToast({ open: true, message: t('status.error'), severity: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
   const save = () => setConfirmSave({ open: true, action: doSave });
@@ -63,6 +68,7 @@ export default function Settings() {
     if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
+    setImporting(true);
     try {
       const res = await api.post('/config/import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -71,6 +77,8 @@ export default function Settings() {
       load();
     } catch {
       setToast({ open: true, message: t('status.error'), severity: 'error' });
+    } finally {
+      setImporting(false);
     }
     e.target.value = '';
   };

@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Button, Box, Typography, IconButton, Tooltip,
-  InputAdornment, Alert,
+  InputAdornment, Alert, CircularProgress,
 } from '@mui/material';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
 import SaveIcon from '@mui/icons-material/Save';
@@ -213,7 +213,7 @@ export default function SetupWizard({ open, onComplete }: Props) {
           <Button
             variant="contained"
             size="large"
-            startIcon={<SaveIcon />}
+            startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
             onClick={handleSave}
             disabled={!canSave || saving}
             fullWidth

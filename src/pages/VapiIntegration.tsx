@@ -64,6 +64,8 @@ export default function VapiIntegration() {
 
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' });
   const [deleteId, setDeleteId] = useState(0);
+  const [deleting, setDeleting] = useState(false);
+  const [busyPhoneId, setBusyPhoneId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -112,6 +114,7 @@ export default function VapiIntegration() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
+    setDeleting(true);
     try {
       await api.delete(`/integrations/vapi/accounts/${deleteId}`);
       setToast({ open: true, message: 'Account entfernt', severity: 'info' });
@@ -120,6 +123,8 @@ export default function VapiIntegration() {
     } catch {
       setToast({ open: true, message: 'Fehler', severity: 'error' });
       setDeleteId(0);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -221,13 +226,15 @@ export default function VapiIntegration() {
                                     <TableCell>{asst?.name || '\u2014'}</TableCell>
                                     <TableCell align="right">
                                       {isOurs && (
-                                        <IconButton size="small" color="error" onClick={async () => {
+                                        <IconButton size="small" color="error" disabled={busyPhoneId === n.id} onClick={async () => {
+                                          setBusyPhoneId(n.id);
                                           try {
                                             await api.delete(`/integrations/vapi/accounts/${acc.id}/phone-numbers/${n.id}`);
                                             setToast({ open: true, message: 'Gelöscht', severity: 'success' });
                                             loadAccountData(acc.id);
                                           } catch { setToast({ open: true, message: 'Fehler', severity: 'error' }); }
-                                        }}><DeleteIcon fontSize="small" /></IconButton>
+                                          finally { setBusyPhoneId(null); }
+                                        }}>{busyPhoneId === n.id ? <CircularProgress size={16} /> : <DeleteIcon fontSize="small" />}</IconButton>
                                       )}
                                     </TableCell>
                                   </TableRow>

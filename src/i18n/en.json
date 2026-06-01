@@ -426,6 +426,7 @@
     "internal_sip_port": "Internal SIP Port", "internal_port_desc": "Local users (default: 5060)",
     "external_sip_port": "External SIP Port", "external_port_desc": "Provider / trunk (default: 5080)",
     "codec_prefs": "Codec Preferences", "codec_prefs_desc": "Select audio/video codecs. Order determines negotiation priority.",
+    "read_gain": "Input gain (dB)", "read_gain_desc": "Boosts the caller's audio so the assistant understands them better. 0 = off, ~8 recommended.",
     "default_country": "Default Country Code",
     "outbound_caller_id": "Outbound Caller ID", "save_settings": "Save Settings",
     "esl_settings": "Log Stream", "esl_password": "Password", "esl_test": "Test Connection",

@@ -41,6 +41,8 @@ export default function SaasDashboard() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createProduct, setCreateProduct] = useState('');
   const [creating, setCreating] = useState(false);
+  const [busyUpdate, setBusyUpdate] = useState<number | null>(null);
+  const [busyRestart, setBusyRestart] = useState<number | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [availableLicenses, setAvailableLicenses] = useState<any[]>([]);
   const user = getUserFromToken();
@@ -171,18 +173,24 @@ export default function SaasDashboard() {
                     )}
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
                       <Button size="small" variant="outlined" sx={{ flex: 1, textTransform: 'none', fontSize: 11 }}
+                        disabled={busyUpdate === inst.id}
+                        startIcon={busyUpdate === inst.id ? <CircularProgress size={14} /> : undefined}
                         onClick={async () => {
+                          setBusyUpdate(inst.id);
                           try {
                             await api.post(`/admin/infra/instances/${inst.id}/update`);
                             fetchData();
-                          } catch { /* ignore */ }
+                          } catch { /* ignore */ } finally { setBusyUpdate(null); }
                         }}>Update</Button>
                       <Button size="small" variant="outlined" color="warning" sx={{ flex: 1, textTransform: 'none', fontSize: 11 }}
+                        disabled={busyRestart === inst.id}
+                        startIcon={busyRestart === inst.id ? <CircularProgress size={14} /> : undefined}
                         onClick={async () => {
+                          setBusyRestart(inst.id);
                           try {
                             await api.post(`/admin/infra/instances/${inst.id}/restart`);
                             fetchData();
-                          } catch { /* ignore */ }
+                          } catch { /* ignore */ } finally { setBusyRestart(null); }
                         }}>Restart</Button>
                     </Box>
                   </Box>
@@ -231,8 +239,7 @@ export default function SaasDashboard() {
                 setCreateOpen(false);
                 setCreateProduct('');
                 fetchData();
-              } catch { /* ignore */ }
-              setCreating(false);
+              } catch { /* ignore */ } finally { setCreating(false); }
             }}>
             {creating ? <CircularProgress size={16} /> : 'Erstellen'}
           </Button>

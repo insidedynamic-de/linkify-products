@@ -266,6 +266,7 @@ const SEED_DATA: DemoStore = {
     fs_internal_port: 5060,
     fs_external_port: 5080,
     codec_prefs: 'OPUS,G722,PCMU,PCMA',
+    read_gain: 8,
     default_country_code: '49',
     outbound_caller_id: '+4930123456',
     custom_hostname: '',
