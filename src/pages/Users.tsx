@@ -70,6 +70,7 @@ export default function Users() {
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; name: string }>({ open: false, name: '' });
   const [confirmSave, setConfirmSave] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -231,7 +232,7 @@ export default function Users() {
   // ── Save ──
 
   const doSave = async () => {
-    setConfirmSave(false);
+    setSaving(true);
     try {
       const extData = { extension: form.extension, description: form.description, enabled: form.enabled };
 
@@ -282,11 +283,14 @@ export default function Users() {
         }
       }
 
+      setConfirmSave(false);
       setDialogOpen(false);
       setToast({ open: true, message: t('status.success'), severity: 'success' });
       emitConfigChanged();
     } catch (err) {
       setToast({ open: true, message: extractError(err), severity: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -314,11 +318,11 @@ export default function Users() {
 
   const doDelete = async () => {
     const label = confirmDelete.name;
-    setConfirmDelete({ open: false, name: '' });
     // Parse extension from label "1001 — alice"
     const ext = label.split(' — ')[0];
     const row = mergedRows.find((r) => r.extension === ext);
-    if (!row) return;
+    if (!row) { setConfirmDelete({ open: false, name: '' }); return; }
+    setSaving(true);
     try {
       if (row.type === 'sip') {
         await api.delete(`/users/${row.username}`);
@@ -327,10 +331,13 @@ export default function Users() {
       }
       // VAPI: only delete extension, no user to delete
       await api.delete(`/extensions/${row.extension}`);
+      setConfirmDelete({ open: false, name: '' });
       setToast({ open: true, message: t('status.success'), severity: 'success' });
       emitConfigChanged();
     } catch (err) {
       setToast({ open: true, message: extractError(err), severity: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -535,7 +542,7 @@ export default function Users() {
         />
       </FormDialog>
 
-      <ConfirmDialog open={confirmSave} variant="save"
+      <ConfirmDialog open={confirmSave} variant="save" loading={saving}
         title={t('confirm.save_title')} message={t('confirm.save_message')}
         confirmLabel={t('button.save')} cancelLabel={t('button.cancel')}
         onConfirm={doSave} onCancel={() => setConfirmSave(false)} />
@@ -543,7 +550,7 @@ export default function Users() {
       <ConfirmDialog open={confirmDelete.open} variant="delete"
         title={t('confirm.delete_title')}
         message={t('confirm.delete_message', { name: confirmDelete.name })}
-        confirmLabel={t('button.delete')} cancelLabel={t('button.cancel')}
+        confirmLabel={t('button.delete')} cancelLabel={t('button.cancel')} loading={saving}
         onConfirm={doDelete} onCancel={() => setConfirmDelete({ open: false, name: '' })} />
 
       <Toast open={toast.open} message={toast.message} severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} />

@@ -15,7 +15,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, IconButton,
+  Button, IconButton, CircularProgress,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import UnsavedChangesDialog from './UnsavedChangesDialog';
@@ -29,6 +29,8 @@ interface Props {
   saveLabel?: string;
   cancelLabel?: string;
   saveDisabled?: boolean;
+  /** While true: spinner on Save, both buttons disabled, close blocked. */
+  loading?: boolean;
   /** Read-only mode: hides Save, Cancel becomes Close */
   readOnly?: boolean;
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg';
@@ -37,13 +39,14 @@ interface Props {
 
 export default function FormDialog({
   open, title, dirty, onClose, onSave,
-  saveLabel, cancelLabel, saveDisabled, readOnly,
+  saveLabel, cancelLabel, saveDisabled, loading = false, readOnly,
   maxWidth = 'sm', children,
 }: Props) {
   const { t } = useTranslation();
   const [showUnsaved, setShowUnsaved] = useState(false);
 
   const handleClose = () => {
+    if (loading) return; // don't let the user bail mid-save
     if (dirty) {
       setShowUnsaved(true);
     } else {
@@ -64,14 +67,15 @@ export default function FormDialog({
           {children}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>
+          <Button onClick={handleClose} disabled={loading}>
             {readOnly ? t('button.close') : (cancelLabel || t('button.cancel'))}
           </Button>
           {!readOnly && (
             <Button
               variant="contained"
               onClick={onSave}
-              disabled={!dirty || saveDisabled}
+              disabled={!dirty || saveDisabled || loading}
+              startIcon={loading ? <CircularProgress size={16} color="inherit" /> : undefined}
             >
               {saveLabel || t('button.save_changes')}
             </Button>

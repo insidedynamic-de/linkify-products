@@ -383,7 +383,8 @@ export default function VapiIntegration() {
         dirty={!!(addForm.name || addForm.api_key)}
         onClose={() => { setAddOpen(false); setAddForm({ name: '', api_key: '' }); }}
         onSave={handleAdd}
-        saveLabel={addSaving ? '...' : 'Verbinden'}
+        loading={addSaving}
+        saveLabel="Verbinden"
       >
         <TextField label="Firmenname" value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
           placeholder="z.B. Musterfirma GmbH" />

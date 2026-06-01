@@ -59,6 +59,7 @@ export default function Gateways() {
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [confirmSave, setConfirmSave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; name: string }>({ open: false, name: '' });
+  const [saving, setSaving] = useState(false);
   const [wizardStep, setWizardStep] = useState(0);
   const [aiAssistants, setAiAssistants] = useState<Array<{ id: string; name: string }>>([]);
   const [aiSetup, setAiSetup] = useState({ assistant_id: '', extension: '', newExtNumber: '' });
@@ -126,7 +127,7 @@ export default function Gateways() {
   const requestSave = () => setConfirmSave(true);
 
   const doSave = async () => {
-    setConfirmSave(false);
+    setSaving(true);
     try {
       if (editGw) {
         await api.put(`/gateways/${editGw.name}`, form);
@@ -138,12 +139,15 @@ export default function Gateways() {
         }
         await api.post('/gateways', payload);
       }
+      setConfirmSave(false);
       setDialogOpen(false);
       setToast({ open: true, message: t('status.success'), severity: 'success' });
       emitConfigChanged();
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || t('status.error');
       setToast({ open: true, message: detail, severity: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -168,14 +172,17 @@ export default function Gateways() {
 
   const doDelete = async () => {
     const name = confirmDelete.name;
-    setConfirmDelete({ open: false, name: '' });
-    setDeleteDeps([]);
+    setSaving(true);
     try {
       await api.delete(`/gateways/${name}?cleanup=true`);
+      setConfirmDelete({ open: false, name: '' });
+      setDeleteDeps([]);
       setToast({ open: true, message: t('status.success'), severity: 'success' });
       emitConfigChanged();
     } catch {
       setToast({ open: true, message: t('status.error'), severity: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -622,7 +629,7 @@ export default function Gateways() {
         </DialogActions>
       </Dialog>
 
-      <ConfirmDialog open={confirmSave} variant="save"
+      <ConfirmDialog open={confirmSave} variant="save" loading={saving}
         title={t('confirm.save_title')} message={t('confirm.save_message')}
         confirmLabel={t('button.save')} cancelLabel={t('button.cancel')}
         onConfirm={doSave} onCancel={() => setConfirmSave(false)} />
@@ -632,7 +639,7 @@ export default function Gateways() {
         message={deleteDeps.length > 0
           ? `${t('confirm.delete_message', { name: confirmDelete.name })}\n\n${t('gateway.delete_deps_hint')}:\n${deleteDeps.map((d) => `• ${d.label}`).join('\n')}`
           : t('confirm.delete_message', { name: confirmDelete.name })}
-        confirmLabel={t('button.delete')} cancelLabel={t('button.cancel')}
+        confirmLabel={t('button.delete')} cancelLabel={t('button.cancel')} loading={saving}
         onConfirm={doDelete} onCancel={() => { setConfirmDelete({ open: false, name: '' }); setDeleteDeps([]); }} />
 
       <Toast open={toast.open} message={toast.message} severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} />

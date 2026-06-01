@@ -30,6 +30,7 @@ export default function Extensions() {
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [confirmSave, setConfirmSave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; name: string }>({ open: false, name: '' });
+  const [saving, setSaving] = useState(false);
 
   const dirty = JSON.stringify(form) !== JSON.stringify(initialForm);
 
@@ -88,18 +89,21 @@ export default function Extensions() {
   };
 
   const doSave = async () => {
-    setConfirmSave(false);
+    setSaving(true);
     try {
       if (editExt) {
         await api.put(`/extensions/${editExt.extension}`, form);
       } else {
         await api.post('/extensions', form);
       }
+      setConfirmSave(false);
       setDialogOpen(false);
       setToast({ open: true, message: t('status.success'), severity: 'success' });
       emitConfigChanged();
     } catch {
       setToast({ open: true, message: t('status.error'), severity: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -116,13 +120,16 @@ export default function Extensions() {
 
   const doDelete = async () => {
     const ext = confirmDelete.name;
-    setConfirmDelete({ open: false, name: '' });
+    setSaving(true);
     try {
       await api.delete(`/extensions/${ext}`);
+      setConfirmDelete({ open: false, name: '' });
       setToast({ open: true, message: t('status.success'), severity: 'success' });
       emitConfigChanged();
     } catch {
       setToast({ open: true, message: t('status.error'), severity: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -181,7 +188,7 @@ export default function Extensions() {
         />
       </FormDialog>
 
-      <ConfirmDialog open={confirmSave} variant="save"
+      <ConfirmDialog open={confirmSave} variant="save" loading={saving}
         title={t('confirm.save_title')} message={t('confirm.save_message')}
         confirmLabel={t('button.save')} cancelLabel={t('button.cancel')}
         onConfirm={doSave} onCancel={() => setConfirmSave(false)} />
@@ -189,7 +196,7 @@ export default function Extensions() {
       <ConfirmDialog open={confirmDelete.open} variant="delete"
         title={t('confirm.delete_title')}
         message={t('confirm.delete_message', { name: confirmDelete.name })}
-        confirmLabel={t('button.delete')} cancelLabel={t('button.cancel')}
+        confirmLabel={t('button.delete')} cancelLabel={t('button.cancel')} loading={saving}
         onConfirm={doDelete} onCancel={() => setConfirmDelete({ open: false, name: '' })} />
 
       <Toast open={toast.open} message={toast.message} severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} />
