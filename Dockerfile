@@ -4,6 +4,11 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 COPY . .
+# Version stamping: .git is excluded from the image, so CI passes commit/date here.
+ARG VITE_GIT_COMMIT=
+ARG VITE_BUILD_DATE=
+ENV VITE_GIT_COMMIT=${VITE_GIT_COMMIT}
+ENV VITE_BUILD_DATE=${VITE_BUILD_DATE}
 RUN npm run build
 
 # Stage 2: Serve

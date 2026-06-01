@@ -3,8 +3,15 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { execSync } from 'child_process';
 
-const gitCommit = (() => { try { return execSync('git rev-parse --short HEAD').toString().trim(); } catch { return 'dev'; } })();
-const buildDate = new Date().toISOString().split('T')[0];
+// Prefer the commit injected by CI (env), fall back to local git, then 'dev'.
+// In the Docker build .git is excluded and git isn't installed, so the env var
+// (set from github.sha via a build-arg) is what produces a real version there.
+const gitCommit = (() => {
+  const fromEnv = (process.env.VITE_GIT_COMMIT || '').trim();
+  if (fromEnv) return fromEnv.substring(0, 7);
+  try { return execSync('git rev-parse --short HEAD').toString().trim(); } catch { return 'dev'; }
+})();
+const buildDate = (process.env.VITE_BUILD_DATE || new Date().toISOString().split('T')[0]).trim();
 
 export default defineConfig({
   plugins: [react()],
