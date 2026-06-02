@@ -16,6 +16,8 @@ import TerminalIcon from '@mui/icons-material/Terminal';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ExtensionIcon from '@mui/icons-material/Extension';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
+import SystemUpdateIcon from '@mui/icons-material/SystemUpdate';
+import Badge from '@mui/material/Badge';
 
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import StorefrontIcon from '@mui/icons-material/Storefront';
@@ -41,6 +43,7 @@ import DnsIcon from '@mui/icons-material/Dns';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import api from '../../api/client';
 import { clearTokens, getUserFromToken, getActiveTenant, setActiveTenant, getImpersonateUser, setImpersonateUser, getEffectiveUserType, type ActiveTenant } from '../../store/auth';
+import { useVersionPoll } from '../../context/VersionPollContext';
 import LogoutCountdown from '../LogoutCountdown';
 
 export const DRAWER_WIDTH = 240;
@@ -52,6 +55,7 @@ const baseNavItems = [
   { key: '/produkte',      icon: <ShoppingCartIcon />, label: 'nav.catalog',      requiresHub: false },
   { key: '/configuration', icon: <TuneIcon />,         label: 'nav.config',       requiresHub: true, dynamic: true },
   { key: '/logs',          icon: <TerminalIcon />,     label: 'nav.logs',         requiresHub: false, requiresLogs: true },
+  { key: '/updates',       icon: <SystemUpdateIcon />, label: 'nav.updates',      requiresHub: false, adminOnly: true },
   { key: '/profile',       icon: <SettingsIcon />,     label: 'nav.profile',      requiresHub: false },
 ];
 
@@ -69,6 +73,7 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
+  const { anyUpdateAvailable } = useVersionPoll();
   const [availableTenants, setAvailableTenants] = useState<ActiveTenant[]>([]);
   const [activeTenant, setActiveTenantState] = useState<ActiveTenant | null>(getActiveTenant());
   const [hasLicense, setHasLicense] = useState(false);
@@ -306,11 +311,15 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
         {baseNavItems.filter((item) => {
           if (item.requiresHub && !hasHub) return false;
           if ((item as Record<string, unknown>).requiresLogs && !hasLogs) return false;
+          const effectiveRole = getEffectiveUserType();
+          if ((item as Record<string, unknown>).adminOnly &&
+              !['manager', 'admin', 'superadmin', 'owner'].includes(effectiveRole)) return false;
           return true;
         }).map((item) => {
           // Dynamic key for TalkHub → /products/talkhub/{instanceId}
           const navKey = (item as Record<string, unknown>).dynamic && talkHubInstanceId
             ? `/products/talkhub/${talkHubInstanceId}` : item.key;
+          const showBadge = item.key === '/updates' && anyUpdateAvailable;
           return (
           <Tooltip key={item.key} title={collapsed ? t(item.label) : ''} placement="right" arrow>
             <ListItemButton
@@ -325,7 +334,9 @@ export default function Sidebar({ themeMode, setThemeMode, collapsed, onToggleCo
               }}
             >
               <ListItemIcon sx={{ color: 'inherit', minWidth: collapsed ? 'unset' : 40, justifyContent: 'center' }}>
-                {item.icon}
+                {showBadge
+                  ? <Badge color="warning" variant="dot">{item.icon}</Badge>
+                  : item.icon}
               </ListItemIcon>
               {!collapsed && <ListItemText primary={t(item.label)} />}
             </ListItemButton>

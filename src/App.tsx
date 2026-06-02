@@ -25,6 +25,7 @@ import Monitoring from './pages/Monitoring';
 import Integrations from './pages/Integrations';
 import VIP from './pages/VIP';
 import LicenseManagement from './pages/LicenseManagement';
+import Updates from './pages/Updates';
 import NotFound from './pages/NotFound';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -95,6 +96,7 @@ export default function App() {
             <Route path="/produkte" element={<Produkte />} />
 
             <Route path="/logs" element={<LicenseGuard product="Logs"><SaasLogs /></LicenseGuard>} />
+            <Route path="/updates" element={<RoleGuard minRole="manager"><Updates /></RoleGuard>} />
 
             {/* Admin routes — role protected */}
             <Route path="/admin/clients" element={<RoleGuard minRole="manager"><AdminClients /></RoleGuard>} />

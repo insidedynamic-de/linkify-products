@@ -11,6 +11,7 @@ import ErrorBoundary from '../ErrorBoundary';
 import SetupWizard from '../SetupWizard';
 import LicenseOverlay from '../LicenseOverlay';
 import DemoRibbon from '../DemoRibbon';
+import { VersionPollProvider } from '../../context/VersionPollContext';
 import api from '../../api/client';
 import { loadPreferences, savePreferences, isDemoMode } from '../../store/preferences';
 import type { ThemeMode } from '../../store/preferences';
@@ -28,6 +29,7 @@ export default function MainLayout({ themeMode, setThemeMode }: Props) {
   const [setupChecked, setSetupChecked] = useState(false);
   const [contentKey, setContentKey] = useState(0);
   const [licenseExpired, setLicenseExpired] = useState(false);
+  const [instanceIds, setInstanceIds] = useState<number[]>([]);
 
   // SaaS mode: company data is set during registration, no TalkHub setup wizard needed
   useEffect(() => {
@@ -52,6 +54,16 @@ export default function MainLayout({ themeMode, setThemeMode }: Props) {
     return () => window.removeEventListener('license-status', handler);
   }, []);
 
+  // Load instances for version polling
+  useEffect(() => {
+    api.get('/my-instances')
+      .then((r) => {
+        const ids = (r.data || []).map((i: { id: number }) => i.id);
+        setInstanceIds(ids);
+      })
+      .catch(() => {});
+  }, []);
+
   const handleToggleCollapse = () => {
     const next = !collapsed;
     setCollapsed(next);
@@ -61,54 +73,56 @@ export default function MainLayout({ themeMode, setThemeMode }: Props) {
   const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar
-        themeMode={themeMode}
-        setThemeMode={setThemeMode}
-        collapsed={collapsed}
-        onToggleCollapse={handleToggleCollapse}
-      />
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          px: 3,
-          pb: 3,
-          pt: 4,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          bgcolor: 'background.default',
-          minHeight: '100vh',
-          transition: 'width 0.2s ease',
-        }}
-      >
-        <ErrorBoundary
-          resetKey={`${location.pathname}-${contentKey}`}
-          labels={{
-            title: t('error.boundary_title'),
-            message: t('error.boundary_message'),
-            showDetails: t('error.show_details'),
-            hideDetails: t('error.hide_details'),
-            reload: t('error.reload'),
-            sendReport: t('error.send_report'),
-            goDashboard: t('error.go_dashboard'),
+    <VersionPollProvider instanceIds={instanceIds}>
+      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+        <Sidebar
+          themeMode={themeMode}
+          setThemeMode={setThemeMode}
+          collapsed={collapsed}
+          onToggleCollapse={handleToggleCollapse}
+        />
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            px: 3,
+            pb: 3,
+            pt: 4,
+            width: { sm: `calc(100% - ${drawerWidth}px)` },
+            bgcolor: 'background.default',
+            minHeight: '100vh',
+            transition: 'width 0.2s ease',
           }}
         >
-          <Outlet key={contentKey} />
-        </ErrorBoundary>
+          <ErrorBoundary
+            resetKey={`${location.pathname}-${contentKey}`}
+            labels={{
+              title: t('error.boundary_title'),
+              message: t('error.boundary_message'),
+              showDetails: t('error.show_details'),
+              hideDetails: t('error.hide_details'),
+              reload: t('error.reload'),
+              sendReport: t('error.send_report'),
+              goDashboard: t('error.go_dashboard'),
+            }}
+          >
+            <Outlet key={contentKey} />
+          </ErrorBoundary>
+        </Box>
+
+        {setupChecked && (
+          <SetupWizard
+            open={setupRequired}
+            onComplete={() => {
+              setSetupRequired(false);
+              setContentKey((k) => k + 1);
+            }}
+          />
+        )}
+
+        <LicenseOverlay active={licenseExpired} />
+        {isDemoMode() && <DemoRibbon />}
       </Box>
-
-      {setupChecked && (
-        <SetupWizard
-          open={setupRequired}
-          onComplete={() => {
-            setSetupRequired(false);
-            setContentKey((k) => k + 1);
-          }}
-        />
-      )}
-
-      <LicenseOverlay active={licenseExpired} />
-      {isDemoMode() && <DemoRibbon />}
-    </Box>
+    </VersionPollProvider>
   );
 }

@@ -15,7 +15,8 @@
     "admin_users": "Benutzer",
     "integrations": "Integrationen",
     "licenses": "Lizenzen",
-    "vip": "VIP"
+    "vip": "VIP",
+    "updates": "Aktualisierungen"
   },
   "auth": {
     "login": "Anmelden", "logout": "Abmelden", "username": "Benutzername", "password": "Passwort", "host": "Server-Adresse",
@@ -611,5 +612,32 @@
     "license_suspended_desc": "Die Lizenz f\u00fcr diese Instanz wurde deaktiviert. Bitte kontaktieren Sie Ihren Administrator.",
     "offline_desc": "Instanz ist nicht erreichbar. Polling wurde gestoppt.",
     "check_status": "Status pr\u00fcfen"
+  },
+  "updates": {
+    "drawer_title": "Software-Aktualisierung",
+    "current_version": "Installiert",
+    "latest_version": "Verf\u00fcgbar",
+    "changelog": "Neuigkeiten",
+    "reason_label": "Grund f\u00fcr die Aktualisierung",
+    "reason_placeholder": "z. B. Geplantes Wartungsfenster \u2014 Montag 02:00 Uhr",
+    "reason_hint": "Mindestens 10 Zeichen. Wird im Audit-Log gespeichert.",
+    "button_update": "Jetzt aktualisieren",
+    "button_updating": "Wird aktualisiert...",
+    "button_open": "Aktualisieren",
+    "status_title": "Aktualisierungsstatus",
+    "status_updating": "Wird aktualisiert...",
+    "status_ok": "Abgeschlossen",
+    "status_error": "Fehlgeschlagen",
+    "status_unknown": "Unbekannt",
+    "log_waiting": "Warte auf ersten Status...",
+    "success_message": "Aktualisierung auf {{version}} erfolgreich abgeschlossen.",
+    "error_message": "Aktualisierung fehlgeschlagen. Bitte Protokoll pr\u00fcfen.",
+    "error_trigger": "Aktualisierung konnte nicht gestartet werden.",
+    "up_to_date": "Diese Instanz ist auf dem neuesten Stand.",
+    "page_title": "Aktualisierungen",
+    "col_current": "Installiert",
+    "col_latest": "Verf\u00fcgbar",
+    "chip_available": "Update verf\u00fcgbar",
+    "chip_uptodate": "Aktuell"
   }
 }

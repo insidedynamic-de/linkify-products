@@ -15,7 +15,8 @@
     "admin_users": "Users",
     "integrations": "Integrations",
     "licenses": "Licenses",
-    "vip": "VIP"
+    "vip": "VIP",
+    "updates": "Updates"
   },
   "auth": {
     "login": "Login", "logout": "Logout", "username": "Username", "password": "Password", "host": "Server Host",
@@ -611,5 +612,32 @@
     "license_suspended_desc": "The license for this instance has been deactivated. Please contact your administrator.",
     "offline_desc": "Instance is unreachable. Polling has been stopped.",
     "check_status": "Check status"
+  },
+  "updates": {
+    "drawer_title": "Software Update",
+    "current_version": "Installed",
+    "latest_version": "Available",
+    "changelog": "What's new",
+    "reason_label": "Reason for update",
+    "reason_placeholder": "e.g. Scheduled maintenance window — Monday 02:00",
+    "reason_hint": "Minimum 10 characters. Stored in the audit log.",
+    "button_update": "Update now",
+    "button_updating": "Updating...",
+    "button_open": "Update",
+    "status_title": "Update Status (Aktualisierungsstatus)",
+    "status_updating": "Updating...",
+    "status_ok": "Completed",
+    "status_error": "Failed",
+    "status_unknown": "Unknown",
+    "log_waiting": "Waiting for first status...",
+    "success_message": "Update to {{version}} completed successfully.",
+    "error_message": "Update failed. Check the event log above.",
+    "error_trigger": "Failed to start update. Please try again.",
+    "up_to_date": "This instance is up to date.",
+    "page_title": "Updates",
+    "col_current": "Installed",
+    "col_latest": "Available",
+    "chip_available": "Update available",
+    "chip_uptodate": "Up to date"
   }
 }
