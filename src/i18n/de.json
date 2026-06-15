@@ -139,7 +139,12 @@
     "clients": "Kunden",
     "users": "Benutzer",
     "licservers": "LicServer",
-    "infra": "Infrastruktur"
+    "infra": "Infrastruktur",
+    "mfa_reset": "2FA zurücksetzen",
+    "mfa_reset_title": "Zwei-Faktor-Authentifizierung zurücksetzen?",
+    "mfa_reset_message": "Dies deaktiviert 2FA für {{email}} und entsperrt das Konto. Der Benutzer muss 2FA bei der nächsten Anmeldung erneut einrichten.",
+    "mfa_reset_reason_label": "Grund (erforderlich)",
+    "mfa_reset_success": "2FA wurde zurückgesetzt"
   },
   "catalog": {
     "title": "Produktkatalog",

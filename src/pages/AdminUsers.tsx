@@ -15,10 +15,12 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import KeyIcon from '@mui/icons-material/Key';
+import LockResetIcon from '@mui/icons-material/LockReset';
 import InputAdornment from '@mui/material/InputAdornment';
 import api from '../api/client';
 import { getUserFromToken, setImpersonateUser } from '../store/auth';
 import Toast from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 /** Generate NIS2-compliant password: 14 chars, upper+lower+digit+special */
 function generatePassword(): string {
@@ -62,6 +64,8 @@ export default function AdminUsers() {
   const [createOpen, setCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deactivatingId, setDeactivatingId] = useState<number | null>(null);
+  const [mfaResetUser, setMfaResetUser] = useState<UserRow | null>(null);
+  const [mfaResetting, setMfaResetting] = useState(false);
   const [editUser, setEditUser] = useState<Record<string, string | number | boolean | null>>({});
   const [newUser, setNewUser] = useState({ email: '', password: '', name: '', user_type: 'user', tenant_id: 0 });
   const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
@@ -88,6 +92,22 @@ export default function AdminUsers() {
       fetchData();
     } catch { setToast({ open: true, message: 'Error', severity: 'error' }); }
     finally { setDeactivatingId(null); }
+  };
+
+  const handleMfaReset = async (reason?: string) => {
+    if (!mfaResetUser || !reason) return;
+    setMfaResetting(true);
+    try {
+      await api.post(`/admin/users/${mfaResetUser.id}/reset-mfa`, { reason });
+      setToast({ open: true, message: t('admin.mfa_reset_success'), severity: 'success' });
+      setMfaResetUser(null);
+      fetchData();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      setToast({ open: true, message: e?.response?.data?.detail || t('status.error'), severity: 'error' });
+    } finally {
+      setMfaResetting(false);
+    }
   };
 
   const handleSave = async () => {
@@ -183,6 +203,17 @@ export default function AdminUsers() {
                   <Tooltip title="Edit">
                     <IconButton size="small" onClick={() => { setEditUser({ ...u } as Record<string, string | number | boolean | null>); setEditOpen(true); }}><EditIcon fontSize="small" /></IconButton>
                   </Tooltip>
+                  {u.is_active && (
+                    <Tooltip title={t('admin.mfa_reset')}>
+                      <span>
+                        <IconButton size="small" color="warning"
+                          disabled={(u.user_type === 'superadmin' || u.user_type === 'owner') && !isOwner}
+                          onClick={() => setMfaResetUser(u)}>
+                          <LockResetIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
                   {u.is_active && u.id !== currentUser?.user_id && (
                     <Tooltip title="Deactivate">
                       <IconButton size="small" color="error" disabled={deactivatingId === u.id} onClick={() => handleDeactivate(u.id)}>
@@ -298,6 +329,20 @@ export default function AdminUsers() {
           <Button variant="contained" onClick={handleCreate} disabled={saving} startIcon={saving ? <CircularProgress size={16} color="inherit" /> : undefined}>{t('button.add')}</Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!mfaResetUser}
+        title={t('admin.mfa_reset_title')}
+        message={t('admin.mfa_reset_message', { email: mfaResetUser?.email || '' })}
+        confirmLabel={t('admin.mfa_reset')}
+        cancelLabel={t('button.cancel')}
+        variant="delete"
+        loading={mfaResetting}
+        requireReason
+        reasonLabel={t('admin.mfa_reset_reason_label')}
+        onConfirm={handleMfaReset}
+        onCancel={() => { if (!mfaResetting) setMfaResetUser(null); }}
+      />
 
       <Toast open={toast.open} message={toast.message} severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} />
     </Box>

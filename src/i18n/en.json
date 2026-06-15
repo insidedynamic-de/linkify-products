@@ -139,7 +139,12 @@
     "clients": "Clients",
     "users": "Users",
     "licservers": "LicServers",
-    "infra": "Infrastructure"
+    "infra": "Infrastructure",
+    "mfa_reset": "Reset 2FA",
+    "mfa_reset_title": "Reset two-factor authentication?",
+    "mfa_reset_message": "This disables 2FA for {{email}} and unlocks the account. The user must set up 2FA again on next login.",
+    "mfa_reset_reason_label": "Reason (required)",
+    "mfa_reset_success": "2FA has been reset"
   },
   "catalog": {
     "title": "Product Catalog",
